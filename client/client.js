@@ -1,12 +1,10 @@
 const wsUri = "ws://localhost:8080";
-const websocket = new WebSocket(wsUri);
+let websocket = new WebSocket(wsUri);
 
-let counter = 0;
+const codeDisplay = document.getElementById("code_display");
+const pairingStatus = document.getElementById("pairing_status");
 
-const message = {
-    iteration: counter,
-    content: "ping",
-};
+var code = null;
 
 function isJson(str) {
     try {
@@ -20,28 +18,23 @@ function isJson(str) {
 
 websocket.addEventListener("open", () => {
     console.log("CONNECTED");
-    pingInterval = setInterval(() => {
-        console.log(`SENT: ping: ${counter}`);
-        websocket.send(JSON.stringify({
-            iteration: counter,
-            content: "ping"
-        }));
-        counter++;
-    }, 1000);
 });
 
 websocket.addEventListener("message", (msg) => {
-    if (isJson(msg.data)) {
-        const message = JSON.parse(msg.data);
-        console.log(`RECIEVED: ${message.iteration}: ${message.content}`);
-    } else {
-        console.log("RECEIVED %s", msg.data);
+    const incomingMessage = JSON.parse(msg.data);
+    switch (incomingMessage.signal) {
+        case 0:
+            code = incomingMessage.content;
+            codeDisplay.textContent = code;
+            break;
+        case 1:
+            pairingStatus.textContent = incomingMessage.content;
+            break;
     }
 });
 
 websocket.addEventListener("close", () => {
     console.log("DISCONNECTED");
-    clearInterval(pingInterval);
 });
 
 window.addEventListener("pagehide", () => {
@@ -49,10 +42,27 @@ window.addEventListener("pagehide", () => {
         console.log("CLOSING");
         websocket.close();
         websocket = null;
-        window.clearInterval(pingInterval);
     }
 });
 
 websocket.addEventListener("error", (e) => {
     console.log('ERROR');
+});
+
+const codeButton = document.getElementById("code_button");
+
+codeButton.addEventListener("click", () => {
+    websocket.send(JSON.stringify({
+        signal: 0,
+        content: ""
+    }));
+});
+
+const pairingField = document.getElementById("pairing_field");
+
+pairingField.addEventListener("change", () => {
+    websocket.send(JSON.stringify({
+        signal: 1,
+        content: pairingField.value
+    }));
 });
