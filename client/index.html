@@ -5,11 +5,16 @@
     <title>File sharing yippee</title>
 </head>
 <body>
-    <h1>File sharing test</h1>
+    <h1>File sharing</h1>
+    <h2 id="name"></h2>
     <button type="button" id="code_button">Generate code</button>
     <input type="text" id="pairing_field" placeholder="Enter pairing code">
     <h2 id="code_display"></h2>
-    <p id="pairing_status"></p>
+    <input type="file" id="file_upload">
+    <select id="client_selection">
+        <option value="" disabled hidden selected>Select...</option>
+    </select>
+    <button type="button" id="send">Send</button>
 
     <script src="client.js"></script>
 </body>

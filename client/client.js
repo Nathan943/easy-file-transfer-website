@@ -1,10 +1,18 @@
 const wsUri = "ws://localhost:8080";
 let websocket = new WebSocket(wsUri);
 
+const nameDisplay = document.getElementById("name")
+
+const codeButton = document.getElementById("code_button");
+const pairingField = document.getElementById("pairing_field");
 const codeDisplay = document.getElementById("code_display");
-const pairingStatus = document.getElementById("pairing_status");
+
+const clientSelection = document.getElementById("client_selection");
+const sendButton = document.getElementById("send");
+
 
 var code = null;
+
 
 function isJson(str) {
     try {
@@ -28,8 +36,17 @@ websocket.addEventListener("message", (msg) => {
             codeDisplay.textContent = code;
             break;
         case 1:
-            pairingStatus.textContent = incomingMessage.content;
+            if (incomingMessage.content == null) {
+                break;
+            }
+
+            //Make button
+            var option = document.createElement('option');
+            option.text = option.value = incomingMessage.content;
+            clientSelection.add(option, 0);
             break;
+        case 2:
+            nameDisplay.textContent = "Your name is: " + incomingMessage.content
     }
 });
 
@@ -49,7 +66,6 @@ websocket.addEventListener("error", (e) => {
     console.log('ERROR');
 });
 
-const codeButton = document.getElementById("code_button");
 
 codeButton.addEventListener("click", () => {
     websocket.send(JSON.stringify({
@@ -58,11 +74,9 @@ codeButton.addEventListener("click", () => {
     }));
 });
 
-const pairingField = document.getElementById("pairing_field");
-
 pairingField.addEventListener("change", () => {
     websocket.send(JSON.stringify({
         signal: 1,
-        content: pairingField.value
+        content: pairingField.value,
     }));
 });
