@@ -1,3 +1,5 @@
+// import { sign } from "node:crypto";
+
 const wsUri = "ws://localhost:8080";
 let websocket = new WebSocket(wsUri);
 
@@ -7,11 +9,13 @@ const codeButton = document.getElementById("code_button");
 const pairingField = document.getElementById("pairing_field");
 const codeDisplay = document.getElementById("code_display");
 
+const fileUpload = document.getElementById("file_upload");
 const clientSelection = document.getElementById("client_selection");
 const sendButton = document.getElementById("send");
 
 
 var code = null;
+const linkedClients = new Map();
 
 
 function isJson(str) {
@@ -39,14 +43,20 @@ websocket.addEventListener("message", (msg) => {
             if (incomingMessage.content == null) {
                 break;
             }
+            clientName = incomingMessage.content.client_name;
+            clientId = incomingMessage.content.client_id;
+
+            linkedClients.set(clientName, clientId);
+            
 
             //Make button
             var option = document.createElement('option');
-            option.text = option.value = incomingMessage.content;
+            option.text = option.value = clientName;
             clientSelection.add(option, 0);
             break;
         case 2:
-            nameDisplay.textContent = "Your name is: " + incomingMessage.content
+            nameDisplay.textContent = "Your name is: " + incomingMessage.content;
+            break;
     }
 });
 
@@ -79,4 +89,29 @@ pairingField.addEventListener("change", () => {
         signal: 1,
         content: pairingField.value,
     }));
+});
+
+sendButton.addEventListener("click", () => {
+    const file = fileUpload.files[0];
+    if (!file) return;
+    
+    var reader = new FileReader();
+
+    reader.onload = function (e) {
+        const rawData = e.target.result;
+        console.log(clientSelection.options[clientSelection.selectedIndex].text);
+        websocket.send(JSON.stringify({
+            signal: 2,
+            content: {
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                target: linkedClients.get(clientSelection.options[clientSelection.selectedIndex].text)
+            }
+        }))
+
+        //websocket.send(rawData);
+    }
+
+    reader.readAsArrayBuffer(file);
 });

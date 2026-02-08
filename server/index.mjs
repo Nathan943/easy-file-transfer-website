@@ -39,6 +39,16 @@ function linkSession(id1, id2) {
     sessions.get(id2).add(id1);
 }
 
+
+function isJson(str) {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        return false;
+    }
+    return true;
+}
+
 /* 
 When client is connected
 */
@@ -69,6 +79,8 @@ wss.on('connection', function connection(ws) {
 
         //Decide what to do with it
         /*
+        First check if raw data is being sent
+
         Signals:
             0 - Generate pairing code for the client
             1 - Connect with another client through pairing code
@@ -104,16 +116,18 @@ wss.on('connection', function connection(ws) {
 
                     ws.send(JSON.stringify({
                         signal: 1,
-                        content: clientAndNames.get(targetId)
+                        content: {
+                            client_id: targetId,
+                            client_name: clientAndNames.get(targetId)
+                        }
                     }));
                     clients.get(targetId).send(JSON.stringify({
                         signal: 1,
-                        content: clientAndNames.get(id)
+                        content: {
+                            client_id: id,
+                            client_name: clientAndNames.get(id)
+                        }
                     }));
-
-                    for (const [key, value] of sessions) {
-                        console.log("%s: %s", key, value);
-                    }
 
                 } else {
 
@@ -124,6 +138,20 @@ wss.on('connection', function connection(ws) {
                         content: null
                     }));
                 }
+                break;
+            case 2:
+                
+                //Check if the clients are allowed to transfer files
+                for (const [key, value] of sessions) {
+                    if (key == id) {
+                        for (const x of value) {
+                            if (x == incomingMessage.content.target) {
+                                console.log("connection allowed");
+                            }
+                        }
+                    }
+                }
+                break;
         }
     });
 
