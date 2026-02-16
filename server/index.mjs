@@ -67,6 +67,10 @@ wss.on('connection', function connection(ws) {
     }));
 
 
+    var canTransfer = false;
+    var transferTarget = null;
+
+
     console.log("Total clients: ", clients.size);
 
 
@@ -75,83 +79,106 @@ wss.on('connection', function connection(ws) {
     */
     ws.on('message', (msg) => {
         //Parse message
-        const incomingMessage = JSON.parse(msg.toString());
+        if (!isJson(msg)) {
+            if (canTransfer) {
+                transferTarget.send(msg);
+                canTransfer = false;
+            }
+        } else {
+            const parsedMessage = JSON.parse(msg.toString());
 
-        //Decide what to do with it
-        /*
-        First check if raw data is being sent
+            //Decide what to do with it
+            /*
+            First check if raw data is being sent
 
-        Signals:
-            0 - Generate pairing code for the client
-            1 - Connect with another client through pairing code
-        */
-        switch (incomingMessage.signal) {
-            case 0:
-                let newPairingCode = generatePairingCode();
+            Signals:
+                0 - Generate pairing code for the client
+                1 - Connect with another client through pairing code
+                2 - Metadata for a file being transferred
+                3 - File transfer is done
+            */
+            switch (parsedMessage.signal) {
+                case 0:
+                    let newPairingCode = generatePairingCode();
 
-                //Send code and log it
-                ws.send(JSON.stringify({
-                    signal: 0,
-                    content: newPairingCode
-                }));
-                pairingCodes.set(newPairingCode, id);
-
-                //Delete pairing code after 60 seconds
-                setTimeout(() => {
-                    pairingCodes.delete(newPairingCode);
-                }, 60000);
-                break;
-            case 1:
-                console.log("Received pairing request from client %s: %s", id, incomingMessage.content);
-
-                //Check if valid pairing code
-                if (pairingCodes.has(incomingMessage.content)) {
-                    console.log("Connected!");
-
-                    //Get id of the target to pair with
-                    const targetId = pairingCodes.get(incomingMessage.content);
-
-                    //Link two clients by id
-                    linkSession(id, targetId);
-
+                    //Send code and log it
                     ws.send(JSON.stringify({
-                        signal: 1,
-                        content: {
-                            client_id: targetId,
-                            client_name: clientAndNames.get(targetId)
-                        }
+                        signal: 0,
+                        content: newPairingCode
                     }));
-                    clients.get(targetId).send(JSON.stringify({
-                        signal: 1,
-                        content: {
-                            client_id: id,
-                            client_name: clientAndNames.get(id)
-                        }
-                    }));
+                    pairingCodes.set(newPairingCode, id);
 
-                } else {
+                    //Delete pairing code after 60 seconds
+                    setTimeout(() => {
+                        pairingCodes.delete(newPairingCode);
+                    }, 60000);
+                    break;
+                case 1:
 
-                    //Pairing code expired or does not exist
-                    console.log("Unsuccessful connection");
-                    ws.send(JSON.stringify({
-                        signal: 1,
-                        content: null
-                    }));
-                }
-                break;
-            case 2:
-                
-                //Check if the clients are allowed to transfer files
-                for (const [key, value] of sessions) {
-                    if (key == id) {
-                        for (const x of value) {
-                            if (x == incomingMessage.content.target) {
-                                console.log("connection allowed");
+                    //Check if valid pairing code
+                    if (pairingCodes.has(parsedMessage.content)) {
+                        console.log("Connected!");
+
+                        //Get id of the target to pair with
+                        const targetId = pairingCodes.get(parsedMessage.content);
+
+                        //Link two clients by id
+                        linkSession(id, targetId);
+
+                        ws.send(JSON.stringify({
+                            signal: 1,
+                            content: {
+                                client_id: targetId,
+                                client_name: clientAndNames.get(targetId)
+                            }
+                        }));
+                        clients.get(targetId).send(JSON.stringify({
+                            signal: 1,
+                            content: {
+                                client_id: id,
+                                client_name: clientAndNames.get(id)
+                            }
+                        }));
+
+                    } else {
+
+                        //Pairing code expired or does not exist
+                        console.log("Unsuccessful connection");
+                        ws.send(JSON.stringify({
+                            signal: 1,
+                            content: null
+                        }));
+                    }
+                    break;
+                case 2:
+                    //Check if the clients are allowed to transfer files
+                    for (const [key, value] of sessions) {
+                        if (key == id) {
+                            for (const x of value) {
+                                if (x == parsedMessage.content.target) {
+                                    canTransfer = true;
+                                    transferTarget = clients.get(x);
+                                    
+                                    transferTarget.send(JSON.stringify({
+                                        signal: 3,
+                                        content: {
+                                            name: parsedMessage.content.name,
+                                            type: parsedMessage.content.type,
+                                            size: parsedMessage.content.size
+                                        }
+                                    }));
+                                }
                             }
                         }
                     }
-                }
-                break;
+                    break;
+
+                case 3:
+                    transferTarget.send(JSON.stringify({
+                        signal: 4
+                    }))
+                    break;
+            }
         }
     });
 
@@ -164,6 +191,5 @@ wss.on('connection', function connection(ws) {
     ws.on('close', function close() {
         console.log("close received");
         clients.delete(id);
-        pairingCodes.delete(id);
     });
 });

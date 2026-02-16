@@ -18,6 +18,10 @@ var code = null;
 const linkedClients = new Map();
 
 
+var incomingMeta = null;
+var incomingChunks = [];
+
+
 function isJson(str) {
     try {
         JSON.parse(str);
@@ -28,35 +32,84 @@ function isJson(str) {
 }
 
 
+function sliceFile(file) {
+
+}
+
+function createDownloadButton(name, blob) {
+    const btn  = document.createElement("button");
+    btn.textContent = name;
+
+    btn.onclick = () => {
+        const url = URL.createObjectURL(blob);
+
+        const download = document.createElement("a");
+        download.href = url;
+        download.download = name;
+        download.click();
+
+        URL.revokeObjectURL(url);
+    };
+
+    document.body.append(btn);
+}
+
 websocket.addEventListener("open", () => {
     console.log("CONNECTED");
 });
 
 websocket.addEventListener("message", (msg) => {
-    const incomingMessage = JSON.parse(msg.data);
-    switch (incomingMessage.signal) {
-        case 0:
-            code = incomingMessage.content;
-            codeDisplay.textContent = code;
-            break;
-        case 1:
-            if (incomingMessage.content == null) {
+
+    if (!isJson(msg.data)) {
+        incomingChunks.push(msg.data);
+    } else {
+
+        const parsedMessage = JSON.parse(msg.data);
+
+        /*
+            First check if raw data is being sent
+
+            What data is being sent?
+            Signals:
+                0 - Pairing code
+                1 - Other client name and id
+                2 - Generated name
+                3 - Incoming file metadata
+                4 - File transfer done
+        */
+        switch (parsedMessage.signal) {
+            case 0:
+                code = parsedMessage.content;
+                codeDisplay.textContent = code;
                 break;
-            }
-            clientName = incomingMessage.content.client_name;
-            clientId = incomingMessage.content.client_id;
+            case 1:
+                if (parsedMessage.content == null) {
+                    break;
+                }
+                clientName = parsedMessage.content.client_name;
+                clientId = parsedMessage.content.client_id;
 
-            linkedClients.set(clientName, clientId);
-            
+                linkedClients.set(clientName, clientId);
+                
 
-            //Make button
-            var option = document.createElement('option');
-            option.text = option.value = clientName;
-            clientSelection.add(option, 0);
-            break;
-        case 2:
-            nameDisplay.textContent = "Your name is: " + incomingMessage.content;
-            break;
+                //Make button
+                var option = document.createElement('option');
+                option.text = option.value = clientName;
+                clientSelection.add(option, 0);
+                break;
+            case 2:
+                nameDisplay.textContent = "Your name is: " + parsedMessage.content;
+                break;
+            case 3:
+                incomingMeta = parsedMessage.content;
+                incomingChunks = [];
+                break;
+            case 4:
+                const fileBlob = new Blob(incomingChunks, {
+                    type: incomingMeta.type
+                });
+                createDownloadButton(incomingMeta.name, fileBlob);
+        }
     }
 });
 
@@ -110,7 +163,11 @@ sendButton.addEventListener("click", () => {
             }
         }))
 
-        //websocket.send(rawData);
+        websocket.send(rawData);
+
+        websocket.send(JSON.stringify({
+            signal: 3
+        }));
     }
 
     reader.readAsArrayBuffer(file);
