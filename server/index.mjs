@@ -67,6 +67,7 @@ wss.on('connection', function connection(ws) {
     }));
 
 
+    //Vars for file transfer
     var canTransfer = false;
     var transferTarget = null;
 
@@ -82,14 +83,12 @@ wss.on('connection', function connection(ws) {
         if (!isJson(msg)) {
             if (canTransfer) {
                 transferTarget.send(msg);
-                canTransfer = false;
             }
         } else {
             const parsedMessage = JSON.parse(msg.toString());
 
-            //Decide what to do with it
             /*
-            First check if raw data is being sent
+            Decide what to do with it
 
             Signals:
                 0 - Generate pairing code for the client
@@ -176,7 +175,8 @@ wss.on('connection', function connection(ws) {
                 case 3:
                     transferTarget.send(JSON.stringify({
                         signal: 4
-                    }))
+                    }));
+                    canTransfer = false;
                     break;
             }
         }
