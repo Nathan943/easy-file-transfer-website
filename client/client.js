@@ -26,8 +26,8 @@ const linkedClients = new Map();
 
 
 //Set up file receiving
-var incomingMeta = null;
-var incomingChunks = [];
+let incomingFile = null;
+let progressCounter = 0;
 
 
 //64kb chunks
@@ -36,7 +36,6 @@ const CHUNK_SIZE = 64 * 1024;
 
 //Check if an incoming message is JSON format
 function isJson(str) {
-    console.log("isJson triggered")
     try {
         JSON.parse(str);
     } catch (e) {
@@ -46,16 +45,37 @@ function isJson(str) {
 }
 
 
+function createProgressBar(name) {
+    const progressBar = document.createElement("p");
+    progressBar.className = "progress_bar";
+    progressBar.id = name;
+    progressBar.innerHTML = `${name}<br>Progress: 0%`;
+
+    document.body.appendChild(progressBar);
+}
+
+function updateProgressBar(name, percentage) {
+    if (document.getElementById(name)) {
+        const progressBar = document.getElementById(name);
+        progressBar.innerHTML = `${name}<br>Progress: ${percentage}%`;
+    }
+}
+
+
 //Send file in chunks
 function sendFile(file) {
     let counter = 0;
+    createProgressBar(file.name);
 
     //Loop through every full chunk and send it
     while (counter + CHUNK_SIZE < file.size) {
+        //Get chunk to send
         const chunk = file.slice(counter, counter + CHUNK_SIZE);
 
         websocket.send(chunk);
+
         counter += CHUNK_SIZE;
+        updateProgressBar(file.name, (counter/file.size) * 100);
         console.log("Chunk sent 64kb");
     }
 
@@ -63,11 +83,12 @@ function sendFile(file) {
     const last = file.slice(counter, file.size);
     websocket.send(last);
 
+    updateProgressBar(file.name, 100);
     console.log("Chunk sent %skb", (file.size - counter)/1024);
 
     //Send end signal
     websocket.send(JSON.stringify({
-        signal: 3
+        signal: 4
     }));
 }
 
@@ -101,73 +122,88 @@ websocket.addEventListener("open", () => {
 //Listen for msg from server
 websocket.addEventListener("message", (msg) => {
 
-    //Check if msg is file data
     if (!isJson(msg.data)) {
+        if (!incomingFile) return;
 
-        incomingChunks.push(msg.data);
+        incomingFile.chunks.push(msg.data);
+        progressCounter++;
+        return;
+    }
 
-    } else {
 
-        const parsedMessage = JSON.parse(msg.data);
+    const parsedMessage = JSON.parse(msg.data);
 
-        /*
-            What data is being sent?
-            Signals:
-                0 - Pairing code
-                1 - Other client name and id
-                2 - Generated name
-                3 - Incoming file metadata
-                4 - File transfer done
-        */
-        switch (parsedMessage.signal) {
-            case 0:
+    /*
+        What data am I receiving?
+        Signals:
+            0 - Pairing code
+            1 - Other client name and id
+            2 - Generated name
+            3 - Incoming file metadata
+            4 - File transfer done
+    */
+    switch (parsedMessage.signal) {
+        case 0:
 
-                //Display pairing code from server
-                code = parsedMessage.content;
-                codeDisplay.textContent = code;
+            //Display pairing code from server
+            code = parsedMessage.content;
+            codeDisplay.textContent = code;
+            break;
+
+        case 1:
+
+            //If no name or id was sent, do nothing (usually means pairing failed)
+            if (parsedMessage.content == null) {
                 break;
+            }
 
-            case 1:
+            //Log connected client
+            clientName = parsedMessage.content.client_name;
+            clientId = parsedMessage.content.client_id;
+            linkedClients.set(clientName, clientId);
+            
 
-                //If no name or id was sent, do nothing (usually means pairing failed)
-                if (parsedMessage.content == null) {
-                    break;
-                }
+            //Display connected client
+            var option = document.createElement('option');
+            option.text = option.value = clientName;
+            clientSelection.add(option, 0);
+            break;
 
-                //Log connected client
-                clientName = parsedMessage.content.client_name;
-                clientId = parsedMessage.content.client_id;
-                linkedClients.set(clientName, clientId);
-                
+        case 2:
 
-                //Display connected client
-                var option = document.createElement('option');
-                option.text = option.value = clientName;
-                clientSelection.add(option, 0);
-                break;
+            //Display name sent from server
+            nameDisplay.textContent = "Your name is: " + parsedMessage.content;
+            break;
 
-            case 2:
+        case 3:
+            //If another file tries to send at the same time
+            if (incomingFile) {
+                return;
+            }
 
-                //Display name sent from server
-                nameDisplay.textContent = "Your name is: " + parsedMessage.content;
-                break;
+            const name = parsedMessage.name;
+            const type = parsedMessage.type;
+            const size = parsedMessage.size;
+            incomingFile = {
+                name, 
+                type,
+                size,
+                chunks: []
+            };
 
-            case 3:
+            break;
+        
+        case 4:
+            if (!incomingFile) return;
 
-                //Log incoming metadata
-                incomingMeta = parsedMessage.content;
-                incomingChunks = [];
-                break;
+            const fileBlob = new Blob(incomingFile.chunks, {
+                type: incomingFile.type
+            });
+            createDownloadButton(incomingFile.name, fileBlob);
+            incomingFile = null;
 
-            case 4:
+            break;
 
-                //Rebuild file chunks
-                const fileBlob = new Blob(incomingChunks, {
-                    type: incomingMeta.type
-                });
-                createDownloadButton(incomingMeta.name, fileBlob);
-                break;
-        }
     }
 });
 
@@ -219,13 +255,11 @@ sendButton.addEventListener("click", () => {
 
     //Send metadata
     websocket.send(JSON.stringify({
-        signal: 2,
-        content: {
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            target: linkedClients.get(clientSelection.options[clientSelection.selectedIndex].text)
-        }
+        signal: 3,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        target: linkedClients.get(clientSelection.options[clientSelection.selectedIndex].text)
     }))
 
     //Send file data
