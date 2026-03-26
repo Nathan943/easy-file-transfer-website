@@ -30,8 +30,12 @@ let incomingFile = null;
 let progressCounter = 0;
 
 
-//64kb chunks
-const CHUNK_SIZE = 64 * 1024;
+//128kb chunks
+const CHUNK_SIZE = 128 * 1024;
+
+const uploadQueue = [];
+const filesWithIds = new Map();
+var uploading = false;
 
 
 //Check if an incoming message is JSON format
@@ -45,51 +49,83 @@ function isJson(str) {
 }
 
 
-function createProgressBar(name) {
+function createProgressBar(name, fileId) {
     const progressBar = document.createElement("p");
     progressBar.className = "progress_bar";
-    progressBar.id = name;
+    progressBar.id = fileId;
     progressBar.innerHTML = `${name}<br>Progress: 0%`;
 
     document.body.appendChild(progressBar);
 }
 
-function updateProgressBar(name, percentage) {
-    if (document.getElementById(name)) {
-        const progressBar = document.getElementById(name);
+function updateProgressBar(name, fileId, percentage) {
+    if (document.getElementById(fileId)) {
+        const progressBar = document.getElementById(fileId);
         progressBar.innerHTML = `${name}<br>Progress: ${percentage}%`;
     }
 }
 
 
+function processQueue() {
+    if (uploading) return;
+    if (uploadQueue.length == 0) return;
+
+    uploading = true;
+    const fileId = uploadQueue.shift()
+    const file = filesWithIds.get(fileId);
+    filesWithIds.delete(fileId);
+
+    //Send metadata
+    websocket.send(JSON.stringify({
+        signal: 3,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        target: linkedClients.get(clientSelection.options[clientSelection.selectedIndex].text)
+    }))
+
+    //Send file data
+    sendFile(file, fileId);
+}
+
+
 //Send file in chunks
-function sendFile(file) {
+function sendFile(file, fileId) {
     let counter = 0;
-    createProgressBar(file.name);
 
-    //Loop through every full chunk and send it
-    while (counter + CHUNK_SIZE < file.size) {
-        //Get chunk to send
-        const chunk = file.slice(counter, counter + CHUNK_SIZE);
+    function sendChunk() {
+        if (counter + CHUNK_SIZE < file.size) {
+            //Loop through every full chunk and send it
+            //Get chunk to send
+            const chunk = file.slice(counter, counter + CHUNK_SIZE);
 
-        websocket.send(chunk);
+            websocket.send(chunk);
 
-        counter += CHUNK_SIZE;
-        updateProgressBar(file.name, (counter/file.size) * 100);
-        console.log("Chunk sent 64kb");
+            counter += CHUNK_SIZE;
+            updateProgressBar(file.name, fileId, Math.round((counter/file.size) * 100));
+            console.log("Chunk sent 128kb");
+
+            setTimeout(sendChunk, 0);
+        } else {
+            //Send the last chunk, which is not a full 64kb
+            const last = file.slice(counter, file.size);
+            websocket.send(last);
+
+            updateProgressBar(file.name, fileId, 100);
+            console.log("Chunk sent %skb", (file.size - counter)/1024);
+
+            //Send end signal
+            websocket.send(JSON.stringify({
+                signal: 4
+            }));
+
+            //Start the next upload if there is one queued
+            uploading = false;
+            processQueue();
+        }
     }
 
-    //Send the last chunk, which is not a full 64kb
-    const last = file.slice(counter, file.size);
-    websocket.send(last);
-
-    updateProgressBar(file.name, 100);
-    console.log("Chunk sent %skb", (file.size - counter)/1024);
-
-    //Send end signal
-    websocket.send(JSON.stringify({
-        signal: 4
-    }));
+    sendChunk();
 }
 
 
@@ -253,15 +289,10 @@ sendButton.addEventListener("click", () => {
     const file = fileUpload.files[0];
     if (!file) return;
 
-    //Send metadata
-    websocket.send(JSON.stringify({
-        signal: 3,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        target: linkedClients.get(clientSelection.options[clientSelection.selectedIndex].text)
-    }))
+    const fileId = crypto.randomUUID();
+    filesWithIds.set(fileId, file);
 
-    //Send file data
-    sendFile(file);
+    createProgressBar(file.name, fileId);
+    uploadQueue.push(fileId);
+    processQueue();
 });
