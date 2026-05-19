@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 import PairingMenu from "./PairingMenu";
-import MessageIncoming from "./MessageOutgoing";
-import MessageOutgoing from "./MessageIncoming";
+import { Message, Conversation } from "../types/types";
+import MessageDisplay from "./MessageDisplay";
 
 interface Props {
   showMenu: boolean;
+  onFileSelect: (file: File) => void;
+  messages: Message[];
 }
 
-const MainContent = ({ showMenu }: Props) => {
+const MainContent = ({ showMenu, onFileSelect, messages }: Props) => {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -17,18 +19,26 @@ const MainContent = ({ showMenu }: Props) => {
       ) : (
         <div
           className="d-flex flex-column justify-content-end mb-5 p-3"
-          style={{ width: "50%" }}
+          style={{ width: "700px" }}
         >
-          <MessageIncoming />
-          <MessageOutgoing />
-          <button
+          {messages.map((msg) => (
+            <MessageDisplay
+              sender={msg.sender}
+              filename={msg.filename}
+              timestamp={msg.timestamp}
+              downloadUrl={msg.downloadUrl}
+              key={msg.id}
+            />
+          ))}
+
+          <label
             className="btn btn-outline-primary d-flex align-items-center justify-content-center p-2 rounded-5"
             style={{
-              width: "60px",
-              height: "60px",
+              width: "50px",
+              height: "50px",
               position: "absolute",
-              right: "50px",
-              bottom: "50px",
+              bottom: "60px",
+              right: "60px",
             }}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
@@ -45,7 +55,19 @@ const MainContent = ({ showMenu }: Props) => {
                 fill={isHovered ? "white" : "#0d6efd"}
               />
             </svg>
-          </button>
+
+            <input
+              className=""
+              type="file"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  onFileSelect(file);
+                }
+              }}
+            />
+          </label>
         </div>
       )}
     </div>
