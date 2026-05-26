@@ -1,9 +1,9 @@
 export interface Message {
 	id: string;
-	sender: string;
+	sender?: Client;
 	filename: string;
 	downloadUrl: string;
-	timestamp: number;
+	timestamp: string;
 }
 
 export interface Conversation {
@@ -14,4 +14,21 @@ export interface Conversation {
 export interface Client {
 	id: string;
 	name: string;
+}
+
+export interface IncomingFile {
+	name: string;
+	type: string;
+	size: number;
+	chunks: Blob[];
+}
+
+export interface OutgoingFileMeta {
+	name: string;
+	type: string;
+	size: number;
+}
+
+export interface OutgoingFileData {
+	data: Blob;
 }

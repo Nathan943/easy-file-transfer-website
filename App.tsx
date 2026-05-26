@@ -1,13 +1,14 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Header from "./src/components/Header";
 import Name from "./src/components/Name";
 import Sidebar from "./src/components/Sidebar";
 import MainContent from "./src/components/MainContent";
-import { Message, Conversation, Client } from "./src/types/types";
+import { Message, Conversation, Client, IncomingFile } from "./src/types/types";
+import socketHandler from "./src/handlers/SocketHandler";
 
 const App = () => {
 	//List of connected clients, stored as name and id
-	const [clients] = useState<Client[]>([
+	const [clients, setClients] = useState<Client[]>([
 		{ id: crypto.randomUUID(), name: "shte" },
 		{ id: crypto.randomUUID(), name: "shte" },
 		{ id: crypto.randomUUID(), name: "numa" },
@@ -22,6 +23,10 @@ const App = () => {
 
 	//Hold all conversations, storing id and messages
 	const [conversations, setConversations] = useState<Conversation[]>([]);
+
+	//Incoming values from websocket server
+	const [pairCode, setPairCode] = useState(0);
+	const [name, setName] = useState("");
 
 	//Add a new message to a conversation, creating one if there is not already
 	const addMessage = (client: Client, message: Message) => {
@@ -61,17 +66,44 @@ const App = () => {
 	};
 
 	//Build message contents to be displayed
-	const buildMessage = (file: File) => {
+	const buildMessage = (file: File, client?: Client) => {
 		const msg: Message = {
 			id: crypto.randomUUID(),
-			sender: "",
+			sender: client,
 			filename: file.name,
 			downloadUrl: URL.createObjectURL(file),
-			timestamp: Date.now(),
+			timestamp: new Date(Date.now()).toLocaleString(),
 		};
 
 		return msg;
 	};
+
+	useEffect(() => {
+		socketHandler.connect();
+
+		socketHandler.onPairCodeReceived((code: number) => {
+			setPairCode(code);
+		});
+
+		socketHandler.onNameReceived((name: string) => {
+			setName(name);
+		});
+
+		socketHandler.onClientConnected((client: Client) => {
+			setClients((prev) => {
+				return [...prev, client];
+			});
+		});
+
+		socketHandler.onFileReceived((client: Client, file: File) => {
+			const message = buildMessage(file, client);
+			addMessage(client, message);
+		});
+
+		return () => {
+			socketHandler.disconnect();
+		};
+	});
 
 	return (
 		<div className="d-flex flex-column vh-100">
