@@ -6,12 +6,19 @@ import { Client } from "../types/types";
 
 interface Props {
 	clients: Client[];
+	name: string;
 	onSelectClient: (client: Client) => void;
 	showMenu: boolean;
 	setShowMenu: (showMenu: boolean) => void;
 }
 
-const Sidebar = ({ clients, onSelectClient, showMenu, setShowMenu }: Props) => {
+const Sidebar = ({
+	clients,
+	name,
+	onSelectClient,
+	showMenu,
+	setShowMenu,
+}: Props) => {
 	return (
 		<div
 			className="navbar flex-column align-items-start justify-content-start p-4 border rounded-0"
@@ -19,7 +26,7 @@ const Sidebar = ({ clients, onSelectClient, showMenu, setShowMenu }: Props) => {
 		>
 			<PairingButton showMenu={showMenu} setShowMenu={setShowMenu} />
 			<ClientList clients={clients} onSelectClient={onSelectClient} />
-			<Name name="stfe" />
+			<Name name={name} />
 		</div>
 	);
 };

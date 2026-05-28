@@ -25,7 +25,7 @@ const App = () => {
 	const [conversations, setConversations] = useState<Conversation[]>([]);
 
 	//Incoming values from websocket server
-	const [pairCode, setPairCode] = useState(0);
+	const [pairingCode, setPairingCode] = useState(0);
 	const [name, setName] = useState("");
 
 	//Add a new message to a conversation, creating one if there is not already
@@ -82,7 +82,7 @@ const App = () => {
 		socketHandler.connect();
 
 		socketHandler.onPairCodeReceived((code: number) => {
-			setPairCode(code);
+			setPairingCode(code);
 		});
 
 		socketHandler.onNameReceived((name: string) => {
@@ -103,24 +103,31 @@ const App = () => {
 		return () => {
 			socketHandler.disconnect();
 		};
-	});
+	}, []);
 
 	return (
 		<div className="d-flex flex-column vh-100">
 			<div className="d-flex flex-grow-1">
 				<Sidebar
 					clients={clients}
-					onSelectClient={setSelectedClient}
+					name={name}
+					onSelectClient={(client) => {
+						setSelectedClient(client);
+						setShowMenu(false);
+					}}
 					showMenu={showMenu}
 					setShowMenu={setShowMenu}
 				/>
 
 				<MainContent
 					showMenu={showMenu}
+					pairingCode={pairingCode}
+					generatePairingCode={socketHandler.getPairingCode}
+					connectWithClient={socketHandler.connectWithClient}
 					onFileSelect={(file) => {
 						const message = buildMessage(file);
-
 						addMessage(selectedClient, message);
+						socketHandler.send(file, selectedClient);
 					}}
 					messages={getMessages()}
 				/>

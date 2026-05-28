@@ -18,10 +18,10 @@ const MessageDisplay = ({
 			className={`d-flex w-100 ${isIncoming ? "justify-content-start" : "justify-content-end"}`}
 		>
 			<div
-				className={`d-flex flex-row justify-content-between align-items-center mb-3 p-3 rounded-3 gap-5 shadow ${isIncoming && "bg-primary text-white"}`}
+				className={`d-flex flex-row justify-content-between align-items-center mb-3 p-3 rounded-3 gap-5 shadow ${!isIncoming && "bg-primary text-white"}`}
 				style={{
 					width: "300px",
-					backgroundColor: isIncoming ? "" : "lightgray",
+					backgroundColor: isIncoming ? "lightgray" : "",
 				}}
 			>
 				<div className="d-flex flex-column" style={{ minWidth: 0 }}>
@@ -38,14 +38,14 @@ const MessageDisplay = ({
 				</div>
 				<a href={downloadUrl} download={filename}>
 					<button
-						className={`btn d-flex rounded-5 p-2 ${isIncoming ? "bg-primary" : "bg-white"} `}
+						className={`btn d-flex rounded-5 p-2 ${isIncoming ? "bg-white" : "bg-primary"} `}
 						style={{ height: "40px" }}
 					>
 						<img
 							src={
 								isIncoming
-									? "../src/icons/download-white.png"
-									: "../src/icons/download-blue.png"
+									? "../src/icons/download-blue.png"
+									: "../src/icons/download-white.png"
 							}
 						/>
 					</button>

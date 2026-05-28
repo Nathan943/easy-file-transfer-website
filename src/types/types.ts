@@ -32,3 +32,8 @@ export interface OutgoingFileMeta {
 export interface OutgoingFileData {
 	data: Blob;
 }
+
+export interface QueuedUpload {
+	file: File;
+	targetClient: Client;
+}

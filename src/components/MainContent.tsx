@@ -5,17 +5,31 @@ import MessageDisplay from "./MessageDisplay";
 
 interface Props {
 	showMenu: boolean;
+	pairingCode: number;
+	generatePairingCode: () => void;
+	connectWithClient: (pairingCode: string) => void;
 	onFileSelect: (file: File) => void;
 	messages: Message[];
 }
 
-const MainContent = ({ showMenu, onFileSelect, messages }: Props) => {
+const MainContent = ({
+	showMenu,
+	pairingCode,
+	generatePairingCode,
+	connectWithClient,
+	onFileSelect,
+	messages,
+}: Props) => {
 	const [isHovered, setIsHovered] = useState(false);
 
 	return (
 		<div className="flex-grow-1 d-flex justify-content-center">
 			{showMenu ? (
-				<PairingMenu />
+				<PairingMenu
+					pairingCode={pairingCode}
+					generatePairingCode={generatePairingCode}
+					connectWithClient={connectWithClient}
+				/>
 			) : (
 				<div
 					className="d-flex flex-column justify-content-end mb-5 p-3"
@@ -23,7 +37,7 @@ const MainContent = ({ showMenu, onFileSelect, messages }: Props) => {
 				>
 					{messages.map((msg) => (
 						<MessageDisplay
-							isIncoming={msg.sender != null}
+							isIncoming={msg.sender != undefined}
 							filename={msg.filename}
 							timestamp={msg.timestamp}
 							downloadUrl={msg.downloadUrl}

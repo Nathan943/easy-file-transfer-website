@@ -10,11 +10,7 @@ const PairingButton = ({ showMenu, setShowMenu }: Props) => {
 		<>
 			<button
 				type="button"
-				className={
-					showMenu
-						? "btn btn-primary mb-4"
-						: "btn btn-outline-primary mb-4"
-				}
+				className="btn btn-outline-primary mb-4"
 				onClick={() => setShowMenu(!showMenu)}
 			>
 				Add device
