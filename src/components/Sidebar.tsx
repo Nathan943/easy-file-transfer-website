@@ -1,4 +1,4 @@
-import React from "react";
+import React, { use, useState } from "react";
 import Name from "./Name";
 import ClientList from "./ClientList";
 import PairingButton from "./PairingButton";
@@ -21,13 +21,25 @@ const Sidebar = ({
 	setShowMenu,
 	editName,
 }: Props) => {
+	const [deselect, setDeselect] = useState(0);
+
 	return (
 		<div
 			className="navbar flex-column align-items-start justify-content-start p-4 border rounded-0"
 			style={{ width: "250px", borderRadius: "10px" }}
 		>
-			<PairingButton showMenu={showMenu} setShowMenu={setShowMenu} />
-			<ClientList clients={clients} onSelectClient={onSelectClient} />
+			<PairingButton
+				showMenu={showMenu}
+				setShowMenu={setShowMenu}
+				onAddDevice={() => {
+					setDeselect((prev) => prev + 1);
+				}}
+			/>
+			<ClientList
+				clients={clients}
+				onSelectClient={onSelectClient}
+				deselect={deselect}
+			/>
 			<Name name={name} editName={editName} />
 		</div>
 	);

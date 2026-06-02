@@ -104,6 +104,11 @@ const App = () => {
 	useEffect(() => {
 		//Save client list when it updates
 		localStorage.setItem("contacts", JSON.stringify(clients));
+		for (const client of clients) {
+			if (client.id == selectedClient.id) {
+				setSelectedClient(client);
+			}
+		}
 	}, [clients]);
 
 	useEffect(() => {
@@ -242,6 +247,7 @@ const App = () => {
 						socketHandler.send(file, selectedClient);
 					}}
 					messages={getMessages()}
+					isOnline={selectedClient.online}
 				/>
 			</div>
 		</div>

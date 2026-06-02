@@ -45,7 +45,7 @@ wss.on("connection", function connection(ws) {
 
 	let id = "";
 
-	console.log("Total clients: ", clients.size);
+	console.log("Total clients: ", clients.size + 1);
 
 	/* 
     When client sends a message

@@ -1,13 +1,18 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Client } from "../types/types";
 
 interface Props {
 	clients: Client[];
 	onSelectClient: (client: Client) => void;
+	deselect: number;
 }
 
-const ClientList = ({ clients, onSelectClient }: Props) => {
+const ClientList = ({ clients, onSelectClient, deselect }: Props) => {
 	const [selectedIndex, setSelectedIndex] = useState(-1);
+
+	useEffect(() => {
+		setSelectedIndex(-1);
+	}, [deselect]);
 
 	return (
 		<>
