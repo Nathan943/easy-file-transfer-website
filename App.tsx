@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Header from "./src/components/Header";
 import Name from "./src/components/Name";
 import Sidebar from "./src/components/Sidebar";
@@ -8,25 +8,43 @@ import socketHandler from "./src/handlers/SocketHandler";
 
 const App = () => {
 	//List of connected clients, stored as name and id
-	const [clients, setClients] = useState<Client[]>([
-		{ id: crypto.randomUUID(), name: "shte" },
-		{ id: crypto.randomUUID(), name: "shte" },
-		{ id: crypto.randomUUID(), name: "numa" },
-	]);
+	const [clients, setClients] = useState<Client[]>(() => {
+		const saved = localStorage.getItem("contacts");
+
+		if (!saved) return [];
+
+		try {
+			return JSON.parse(saved);
+		} catch {
+			return [];
+		}
+	});
 
 	//Keep track of the client that is currently being viewed
 	const [selectedClient, setSelectedClient] = useState<Client>({
 		id: "",
 		name: "",
+		online: false,
 	});
+
 	const [showMenu, setShowMenu] = useState(false);
 
 	//Hold all conversations, storing id and messages
-	const [conversations, setConversations] = useState<Conversation[]>([]);
+	const [conversations, setConversations] = useState<Conversation[]>(() => {
+		const saved = localStorage.getItem("conversations");
+
+		if (!saved) return [];
+
+		try {
+			return JSON.parse(saved);
+		} catch {
+			return [];
+		}
+	});
 
 	//Incoming values from websocket server
 	const [pairingCode, setPairingCode] = useState(0);
-	const [name, setName] = useState("");
+	const [name, setName] = useState(localStorage.getItem("displayName") ?? "");
 
 	//Add a new message to a conversation, creating one if there is not already
 	const addMessage = (client: Client, message: Message) => {
@@ -78,8 +96,72 @@ const App = () => {
 		return msg;
 	};
 
+	const editName = (name: string) => {
+		socketHandler.editName(name);
+		setName(name);
+	};
+
 	useEffect(() => {
-		socketHandler.connect();
+		//Save client list when it updates
+		localStorage.setItem("contacts", JSON.stringify(clients));
+	}, [clients]);
+
+	useEffect(() => {
+		const modifiedConversations = conversations.map((conversation) => ({
+			...conversation,
+			messages: conversation.messages.map((message) => ({
+				id: message.id,
+				sender: message.sender,
+				filename: message.filename,
+				timestamp: message.timestamp,
+			})),
+		}));
+
+		localStorage.setItem(
+			"conversations",
+			JSON.stringify(modifiedConversations),
+		);
+	}, [conversations]);
+
+	useEffect(() => {
+		localStorage.setItem("displayName", name);
+	}, [name]);
+
+	useEffect(() => {
+		document.title = selectedClient
+			? `File sharing with: ${selectedClient.name}`
+			: "File sharing";
+	}, [selectedClient]);
+
+	useEffect(() => {
+		const handleStorage = (e: StorageEvent) => {
+			if (e.key == "displayName") {
+				setName(e.newValue ?? "");
+			}
+
+			if (e.key == "conversations") {
+				try {
+					setConversations(e.newValue ? JSON.parse(e.newValue) : []);
+				} catch {
+					setConversations([]);
+				}
+			}
+		};
+
+		window.addEventListener("storage", handleStorage);
+
+		return () => {
+			window.removeEventListener("storage", handleStorage);
+		};
+	}, []);
+
+	useEffect(() => {
+		//Generate a new id for this client if there isnt one already
+		const clientId =
+			localStorage.getItem("clientId") ?? crypto.randomUUID();
+		localStorage.setItem("clientId", clientId);
+
+		socketHandler.connect(String(clientId));
 
 		socketHandler.onPairCodeReceived((code: number) => {
 			setPairingCode(code);
@@ -91,6 +173,10 @@ const App = () => {
 
 		socketHandler.onClientConnected((client: Client) => {
 			setClients((prev) => {
+				if (prev.some((c) => c.id == client.id)) {
+					return prev;
+				}
+
 				return [...prev, client];
 			});
 		});
@@ -99,6 +185,31 @@ const App = () => {
 			const message = buildMessage(file, client);
 			addMessage(client, message);
 		});
+
+		socketHandler.onNameChanged((targetClientId: string, name: string) => {
+			setClients((prev) =>
+				prev.map((client) =>
+					client.id == targetClientId ? { ...client, name } : client,
+				),
+			);
+		});
+
+		socketHandler.onContactsReceived((contacts: Client[]) => {
+			setClients(contacts);
+		});
+
+		socketHandler.onClientOnlineStatusChange(
+			//Change status of the specified client
+			(targetClientId: string, online: boolean) => {
+				setClients((prev) =>
+					prev.map((client) =>
+						client.id == targetClientId
+							? { ...client, online }
+							: client,
+					),
+				);
+			},
+		);
 
 		return () => {
 			socketHandler.disconnect();
@@ -111,6 +222,7 @@ const App = () => {
 				<Sidebar
 					clients={clients}
 					name={name}
+					editName={editName}
 					onSelectClient={(client) => {
 						setSelectedClient(client);
 						setShowMenu(false);

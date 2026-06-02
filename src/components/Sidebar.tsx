@@ -7,6 +7,7 @@ import { Client } from "../types/types";
 interface Props {
 	clients: Client[];
 	name: string;
+	editName: (name: string) => void;
 	onSelectClient: (client: Client) => void;
 	showMenu: boolean;
 	setShowMenu: (showMenu: boolean) => void;
@@ -18,6 +19,7 @@ const Sidebar = ({
 	onSelectClient,
 	showMenu,
 	setShowMenu,
+	editName,
 }: Props) => {
 	return (
 		<div
@@ -26,7 +28,7 @@ const Sidebar = ({
 		>
 			<PairingButton showMenu={showMenu} setShowMenu={setShowMenu} />
 			<ClientList clients={clients} onSelectClient={onSelectClient} />
-			<Name name={name} />
+			<Name name={name} editName={editName} />
 		</div>
 	);
 };

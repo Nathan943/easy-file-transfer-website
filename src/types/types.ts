@@ -2,7 +2,7 @@ export interface Message {
 	id: string;
 	sender?: Client;
 	filename: string;
-	downloadUrl: string;
+	downloadUrl?: string;
 	timestamp: string;
 }
 
@@ -14,6 +14,7 @@ export interface Conversation {
 export interface Client {
 	id: string;
 	name: string;
+	online: boolean;
 }
 
 export interface IncomingFile {

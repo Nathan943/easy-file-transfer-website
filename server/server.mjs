@@ -39,23 +39,11 @@ When client is connected
 */
 
 wss.on("connection", function connection(ws) {
-	//Generate client id and store it
-	const id = crypto.randomUUID();
-	clients.set(id, ws);
-
-	//Generate name and store it
-	const name = generateName();
-	clientAndNames.set(id, name);
-	ws.send(
-		JSON.stringify({
-			signal: "CLIENT_NAME",
-			name: name,
-		}),
-	);
-
 	//Vars for file transfer
 	var canTransfer = false;
-	var transferTarget = null;
+	var transferTargets = null;
+
+	let id = "";
 
 	console.log("Total clients: ", clients.size);
 
@@ -64,8 +52,10 @@ wss.on("connection", function connection(ws) {
     */
 	ws.on("message", (msg, isBinary) => {
 		if (isBinary) {
-			if (canTransfer && transferTarget) {
-				transferTarget.send(msg);
+			if (canTransfer && transferTargets) {
+				for (const client of transferTargets) {
+					client.send(msg);
+				}
 			}
 			return;
 		}
@@ -76,6 +66,62 @@ wss.on("connection", function connection(ws) {
         Decide what to do with it
         */
 		switch (parsedMessage.signal) {
+			case "ON_CLIENT_CONNECT":
+				id = parsedMessage.clientId;
+
+				if (!clients.has(id)) {
+					clients.set(id, new Set());
+				}
+
+				clients.get(id).add(ws);
+
+				//Generate name and store it
+				if (!clientAndNames.has(id)) {
+					const name = generateName();
+					clientAndNames.set(id, name);
+					ws.send(
+						JSON.stringify({
+							signal: "CLIENT_NAME",
+							name: name,
+						}),
+					);
+				}
+
+				/*
+				Send a list of all previously connected clients and their online statuses
+				*/
+				const contacts = [];
+
+				const contactsForClient = sessions.get(id) ?? [];
+				for (const connectedClientId of contactsForClient) {
+					contacts.push({
+						id: connectedClientId,
+						name: clientAndNames.get(connectedClientId),
+						online: clients.has(connectedClientId),
+					});
+
+					//If a connected client is online, update it with the new information that this client is now online
+					if (clients.has(connectedClientId)) {
+						for (const client of clients.get(connectedClientId)) {
+							client.send(
+								JSON.stringify({
+									signal: "CLIENT_STATUS_CHANGE",
+									clientId: id,
+									online: true,
+								}),
+							);
+						}
+					}
+				}
+
+				ws.send(
+					JSON.stringify({
+						signal: "CONTACT_LIST",
+						contacts: contacts,
+					}),
+				);
+
+				break;
 			case "REQUEST_PAIRING_CODE":
 				let newPairingCode = generatePairingCode();
 				//Send code and log it
@@ -91,6 +137,30 @@ wss.on("connection", function connection(ws) {
 				setTimeout(() => {
 					pairingCodes.delete(newPairingCode);
 				}, 60000);
+				break;
+
+			case "CHANGE_NAME":
+				clientAndNames.set(id, parsedMessage.name);
+
+				const connectedClients = sessions.get(id);
+
+				if (connectedClients) {
+					for (const targetId of connectedClients) {
+						//Each client could have multiple tabs associated with it, so loop through those and alert each tab to the name change
+						if (clients.has(targetId)) {
+							for (const targetWs of clients.get(targetId)) {
+								targetWs.send(
+									JSON.stringify({
+										signal: "CLIENT_NAME_CHANGED",
+										clientId: id,
+										name: parsedMessage.name,
+									}),
+								);
+							}
+						}
+					}
+				}
+
 				break;
 			case "CONNECT_WITH_CLIENT":
 				//Check if valid pairing code
@@ -124,13 +194,18 @@ wss.on("connection", function connection(ws) {
 							clientName: clientAndNames.get(targetId),
 						}),
 					);
-					clients.get(targetId).send(
-						JSON.stringify({
-							signal: "CONNECTED_CLIENT_INFO",
-							clientId: id,
-							clientName: clientAndNames.get(id),
-						}),
-					);
+
+					if (clients.has(targetId)) {
+						for (const client of clients.get(targetId)) {
+							client.send(
+								JSON.stringify({
+									signal: "CONNECTED_CLIENT_INFO",
+									clientId: id,
+									clientName: clientAndNames.get(id),
+								}),
+							);
+						}
+					}
 				} else {
 					//Pairing code expired or does not exist
 					console.log("Unsuccessful connection");
@@ -144,9 +219,7 @@ wss.on("connection", function connection(ws) {
 				}
 				break;
 			case "FILE_META":
-				if (canTransfer) {
-					break;
-				}
+				if (canTransfer) break;
 
 				//Check if the clients are allowed to transfer files
 				for (const [key, value] of sessions) {
@@ -154,22 +227,24 @@ wss.on("connection", function connection(ws) {
 						for (const x of value) {
 							if (x == parsedMessage.targetClientId) {
 								canTransfer = true;
-								transferTarget = clients.get(x);
 
-								if (!transferTarget) break;
+								transferTargets = clients.get(x);
+								if (!transferTargets) break;
 
-								transferTarget.send(
-									JSON.stringify({
-										signal: "FILE_META",
-										client: {
-											id,
-											name: clientAndNames.get(id),
-										},
-										name: parsedMessage.name,
-										type: parsedMessage.type,
-										size: parsedMessage.size,
-									}),
-								);
+								for (const client of transferTargets) {
+									client.send(
+										JSON.stringify({
+											signal: "FILE_META",
+											client: {
+												id,
+												name: clientAndNames.get(id),
+											},
+											name: parsedMessage.name,
+											type: parsedMessage.type,
+											size: parsedMessage.size,
+										}),
+									);
+								}
 							}
 						}
 					}
@@ -177,16 +252,18 @@ wss.on("connection", function connection(ws) {
 
 				break;
 			case "FILE_END":
-				if (!transferTarget) break;
+				if (!transferTargets) break;
 
-				transferTarget.send(
-					JSON.stringify({
-						signal: "FILE_END",
-					}),
-				);
+				for (const client of transferTargets) {
+					client.send(
+						JSON.stringify({
+							signal: "FILE_END",
+						}),
+					);
+				}
 
 				canTransfer = false;
-				transferTarget = null;
+				transferTargets = null;
 				break;
 		}
 	});
@@ -197,6 +274,35 @@ wss.on("connection", function connection(ws) {
 
 	ws.on("close", function close() {
 		console.log("close received");
-		clients.delete(id);
+
+		//Delete the current tab connection
+		const sockets = clients.get(id);
+
+		if (sockets) {
+			sockets.delete(ws);
+
+			if (sockets.size == 0) {
+				const contactsForClient = sessions.get(id) ?? [];
+
+				for (const connectedClientId of contactsForClient) {
+					//When this client goes offline, update all other connections with the new information
+					if (clients.has(connectedClientId)) {
+						for (const connectedClient of clients.get(
+							connectedClientId,
+						)) {
+							connectedClient.send(
+								JSON.stringify({
+									signal: "CLIENT_STATUS_CHANGE",
+									clientId: id,
+									online: false,
+								}),
+							);
+						}
+					}
+				}
+
+				clients.delete(id);
+			}
+		}
 	});
 });

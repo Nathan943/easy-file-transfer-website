@@ -15,10 +15,10 @@ const MessageDisplay = ({
 }: Props) => {
 	return (
 		<div
-			className={`d-flex w-100 ${isIncoming ? "justify-content-start" : "justify-content-end"}`}
+			className={`d-flex w-100  ${isIncoming ? "justify-content-start" : "justify-content-end"}`}
 		>
 			<div
-				className={`d-flex flex-row justify-content-between align-items-center mb-3 p-3 rounded-3 gap-5 shadow ${!isIncoming && "bg-primary text-white"}`}
+				className={`d-flex flex-row justify-content-between align-items-center mb-3 p-3 rounded-3 gap-4 shadow ${!isIncoming && "bg-primary text-white"}`}
 				style={{
 					width: "300px",
 					backgroundColor: isIncoming ? "lightgray" : "",
@@ -36,20 +36,18 @@ const MessageDisplay = ({
 					</h6>
 					<p className="mb-0">{timestamp}</p>
 				</div>
-				<a href={downloadUrl} download={filename}>
-					<button
-						className={`btn d-flex rounded-5 p-2 ${isIncoming ? "bg-white" : "bg-primary"} `}
-						style={{ height: "40px" }}
-					>
+				{downloadUrl && (
+					<a href={downloadUrl} download={filename} className="m-2">
 						<img
+							style={{ width: "20px" }}
 							src={
 								isIncoming
 									? "../src/icons/download-blue.png"
 									: "../src/icons/download-white.png"
 							}
 						/>
-					</button>
-				</a>
+					</a>
+				)}
 			</div>
 		</div>
 	);

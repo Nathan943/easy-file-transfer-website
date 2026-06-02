@@ -2,7 +2,7 @@
     Client application for the file transfer system
 */
 
-import { Client, IncomingFile, Message, QueuedUpload } from "../types/types";
+import { Client, IncomingFile, QueuedUpload } from "../types/types";
 
 //128 kb chunks
 const CHUNK_SIZE = 128 * 1024;
@@ -10,6 +10,8 @@ const CHUNK_SIZE = 128 * 1024;
 //Websocket connection
 class SocketHandler {
 	private socket: WebSocket | null = null;
+
+	private clientId = "";
 
 	private incomingFile: IncomingFile | null = null;
 
@@ -20,15 +22,31 @@ class SocketHandler {
 	private onNameReceivedCallback?: (name: string) => void;
 	private onClientConnectedCallback?: (client: Client) => void;
 	private onFileReceivedCallback?: (client: Client, file: File) => void;
+	private onContactsReceivedCallback?: (contacts: Client[]) => void;
+	private onClientOnlineStatusChangeCallback?: (
+		targetClientId: string,
+		online: boolean,
+	) => void;
+	private onNameChangedCallback?: (
+		targetClientId: string,
+		name: string,
+	) => void;
 
 	private uploadQueue: QueuedUpload[] = [];
 	private uploading: boolean = false;
 
-	connect() {
+	connect(clientId: string) {
 		this.socket = new WebSocket("ws://localhost:8080");
+		this.clientId = clientId;
 
 		this.socket.addEventListener("open", () => {
 			console.log("CONNECTED");
+			this.socket?.send(
+				JSON.stringify({
+					signal: "ON_CLIENT_CONNECT",
+					clientId: this.clientId,
+				}),
+			);
 		});
 
 		this.socket.addEventListener("message", (msg) => {
@@ -54,6 +72,29 @@ class SocketHandler {
 					//Display name sent from server
 					this.onNameReceivedCallback?.(parsedMessage.name);
 					break;
+
+				case "CLIENT_NAME_CHANGED":
+					console.log("client name change");
+					this.onNameChangedCallback?.(
+						parsedMessage.clientId,
+						parsedMessage.name,
+					);
+					break;
+
+				case "CONTACT_LIST":
+					/*
+					Go through the list of contacts and send the information to App to be displayed
+					*/
+					this.onContactsReceivedCallback?.(parsedMessage.contacts);
+					break;
+
+				case "CLIENT_STATUS_CHANGE":
+					this.onClientOnlineStatusChangeCallback?.(
+						parsedMessage.clientId,
+						parsedMessage.online,
+					);
+					break;
+
 				case "CONNECTED_CLIENT_INFO":
 					//If no name or id was sent, do nothing (usually means pairing failed)
 					if (parsedMessage.clientId == null) break;
@@ -62,11 +103,12 @@ class SocketHandler {
 					const newClient: Client = {
 						id: parsedMessage.clientId,
 						name: parsedMessage.clientName,
+						online: true,
 					};
 
-					this.linkedClients.push(newClient);
 					this.onClientConnectedCallback?.(newClient);
 					break;
+
 				case "FILE_META":
 					console.log("meta received");
 					//Don't log new metadata if a file is still being sent
@@ -83,6 +125,7 @@ class SocketHandler {
 						chunks: [],
 					};
 					break;
+
 				case "FILE_END":
 					if (!this.incomingFile) break;
 
@@ -129,6 +172,15 @@ class SocketHandler {
 		this.socket?.send(
 			JSON.stringify({
 				signal: "REQUEST_PAIRING_CODE",
+			}),
+		);
+	};
+
+	editName = (name: string) => {
+		this.socket?.send(
+			JSON.stringify({
+				signal: "CHANGE_NAME",
+				name: name,
 			}),
 		);
 	};
@@ -241,6 +293,20 @@ class SocketHandler {
 
 	onFileReceived(callback: (client: Client, file: File) => void) {
 		this.onFileReceivedCallback = callback;
+	}
+
+	onNameChanged(callback: (targetClientId: string, name: string) => void) {
+		this.onNameChangedCallback = callback;
+	}
+
+	onContactsReceived(callback: (contacts: Client[]) => void) {
+		this.onContactsReceivedCallback = callback;
+	}
+
+	onClientOnlineStatusChange(
+		callback: (targetClientId: string, online: boolean) => void,
+	) {
+		this.onClientOnlineStatusChangeCallback = callback;
 	}
 }
 

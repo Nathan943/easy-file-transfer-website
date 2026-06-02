@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import PairingMenu from "./PairingMenu";
 import { Message, Conversation } from "../types/types";
 import MessageDisplay from "./MessageDisplay";
@@ -22,8 +22,19 @@ const MainContent = ({
 }: Props) => {
 	const [isHovered, setIsHovered] = useState(false);
 
+	const containerRef = useRef<HTMLDivElement>(null);
+
+	useLayoutEffect(() => {
+		if (containerRef.current) {
+			containerRef.current.scrollTop = containerRef.current.scrollHeight;
+		}
+	}, [messages]);
+
 	return (
-		<div className="flex-grow-1 d-flex justify-content-center">
+		<div
+			className="flex-grow-1 d-flex justify-content-center h-100 pb-4"
+			style={{ maxHeight: "100vh" }}
+		>
 			{showMenu ? (
 				<PairingMenu
 					pairingCode={pairingCode}
@@ -32,18 +43,21 @@ const MainContent = ({
 				/>
 			) : (
 				<div
-					className="d-flex flex-column justify-content-end mb-5 p-3"
-					style={{ width: "700px" }}
+					className="d-flex flex-column overflow-auto"
+					ref={containerRef}
+					style={{ width: "800px", height: "100%" }}
 				>
-					{messages.map((msg) => (
-						<MessageDisplay
-							isIncoming={msg.sender != undefined}
-							filename={msg.filename}
-							timestamp={msg.timestamp}
-							downloadUrl={msg.downloadUrl}
-							key={msg.id}
-						/>
-					))}
+					<div className="mt-auto">
+						{messages.map((msg) => (
+							<MessageDisplay
+								isIncoming={msg.sender != undefined}
+								filename={msg.filename}
+								timestamp={msg.timestamp}
+								downloadUrl={msg.downloadUrl ?? ""}
+								key={msg.id}
+							/>
+						))}
+					</div>
 
 					<label
 						className="btn btn-outline-primary d-flex align-items-center justify-content-center p-2 rounded-5"
@@ -79,6 +93,8 @@ const MainContent = ({
 								if (file) {
 									onFileSelect(file);
 								}
+
+								e.target.value = "";
 							}}
 						/>
 					</label>
