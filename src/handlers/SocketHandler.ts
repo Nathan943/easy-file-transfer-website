@@ -3,6 +3,7 @@
 */
 
 import { Client, IncomingFile, QueuedUpload } from "../types/types";
+import fileStorageHandler from "../handlers/FileStorageHandler";
 
 //128 kb chunks
 const CHUNK_SIZE = 128 * 1024;
@@ -19,7 +20,10 @@ class SocketHandler {
 	private currentClient: Client | null = null;
 
 	private onPairCodeReceivedCallback?: (code: number) => void;
-	private onNameReceivedCallback?: (name: string) => void;
+	private onNameReceivedCallback?: (
+		name: string,
+		isPrimaryTab: boolean,
+	) => void;
 	private onClientConnectedCallback?: (client: Client) => void;
 	private onFileReceivedCallback?: (client: Client, file: File) => void;
 	private onContactsReceivedCallback?: (contacts: Client[]) => void;
@@ -30,6 +34,10 @@ class SocketHandler {
 	private onNameChangedCallback?: (
 		targetClientId: string,
 		name: string,
+	) => void;
+	private onFileChunkCallback?: (
+		clientId: string,
+		percentageCompletion: number,
 	) => void;
 
 	private uploadQueue: QueuedUpload[] = [];
@@ -55,6 +63,19 @@ class SocketHandler {
 				if (!this.incomingFile) return;
 
 				this.incomingFile.chunks.push(msg.data);
+
+				//Update progress bar
+				const percentageCompletion =
+					(this.incomingFile.chunks.length * CHUNK_SIZE) /
+					this.incomingFile.size;
+
+				if (this.currentClient) {
+					this.onFileChunkCallback?.(
+						this.currentClient?.id,
+						percentageCompletion,
+					);
+				}
+
 				return;
 			}
 
@@ -70,7 +91,10 @@ class SocketHandler {
 					break;
 				case "CLIENT_NAME":
 					//Display name sent from server
-					this.onNameReceivedCallback?.(parsedMessage.name);
+					this.onNameReceivedCallback?.(
+						parsedMessage.name,
+						parsedMessage.isPrimaryTab,
+					);
 					break;
 
 				case "CLIENT_NAME_CHANGED":
@@ -253,15 +277,21 @@ class SocketHandler {
 				this.socket?.send(chunk);
 
 				counter += CHUNK_SIZE;
-				console.log("Chunk sent 128kb");
+
+				const percentageCompletion = counter / file.size;
+				this.onFileChunkCallback?.(
+					uploadData.targetClient.id,
+					percentageCompletion,
+				);
 
 				setTimeout(sendChunk, 0);
 			} else {
-				//Send the last chunk, which is not a full 64kb
+				//Send the last chunk, which is not a full 128kb
 				const last = file.slice(counter, file.size);
 				this.socket?.send(last);
 
-				console.log("Chunk sent %skb", (file.size - counter) / 1024);
+				//Tell progress counter file is done sending
+				this.onFileChunkCallback?.(uploadData.targetClient.id, 1);
 
 				//Send end signal
 				this.socket?.send(
@@ -283,7 +313,7 @@ class SocketHandler {
 		this.onPairCodeReceivedCallback = callback;
 	}
 
-	onNameReceived(callback: (name: string) => void) {
+	onNameReceived(callback: (name: string, isPrimaryTab: boolean) => void) {
 		this.onNameReceivedCallback = callback;
 	}
 
@@ -307,6 +337,12 @@ class SocketHandler {
 		callback: (targetClientId: string, online: boolean) => void,
 	) {
 		this.onClientOnlineStatusChangeCallback = callback;
+	}
+
+	onFileChunk(
+		callback: (clientId: string, percentageCompletion: number) => void,
+	) {
+		this.onFileChunkCallback = callback;
 	}
 }
 

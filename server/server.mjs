@@ -53,8 +53,8 @@ wss.on("connection", function connection(ws) {
 	ws.on("message", (msg, isBinary) => {
 		if (isBinary) {
 			if (canTransfer && transferTargets) {
-				for (const client of transferTargets) {
-					client.send(msg);
+				if (transferTargets[0].readyState == WebSocket.OPEN) {
+					transferTargets[0].send(msg);
 				}
 			}
 			return;
@@ -82,7 +82,7 @@ wss.on("connection", function connection(ws) {
 					ws.send(
 						JSON.stringify({
 							signal: "CLIENT_NAME",
-							name: name,
+							name: clientAndNames.get(id),
 						}),
 					);
 				}
@@ -228,23 +228,21 @@ wss.on("connection", function connection(ws) {
 							if (x == parsedMessage.targetClientId) {
 								canTransfer = true;
 
-								transferTargets = clients.get(x);
+								transferTargets = [...clients.get(x)];
 								if (!transferTargets) break;
 
-								for (const client of transferTargets) {
-									client.send(
-										JSON.stringify({
-											signal: "FILE_META",
-											client: {
-												id,
-												name: clientAndNames.get(id),
-											},
-											name: parsedMessage.name,
-											type: parsedMessage.type,
-											size: parsedMessage.size,
-										}),
-									);
-								}
+								transferTargets[0].send(
+									JSON.stringify({
+										signal: "FILE_META",
+										client: {
+											id,
+											name: clientAndNames.get(id),
+										},
+										name: parsedMessage.name,
+										type: parsedMessage.type,
+										size: parsedMessage.size,
+									}),
+								);
 							}
 						}
 					}
@@ -254,13 +252,11 @@ wss.on("connection", function connection(ws) {
 			case "FILE_END":
 				if (!transferTargets) break;
 
-				for (const client of transferTargets) {
-					client.send(
-						JSON.stringify({
-							signal: "FILE_END",
-						}),
-					);
-				}
+				transferTargets[0].send(
+					JSON.stringify({
+						signal: "FILE_END",
+					}),
+				);
 
 				canTransfer = false;
 				transferTargets = null;

@@ -45,9 +45,9 @@ const MainContent = ({
 				/>
 			) : (
 				<div
-					className="d-flex flex-column overflow-auto"
+					className="d-flex flex-column overflow-auto p-5 w-100"
 					ref={containerRef}
-					style={{ width: "800px", height: "100%" }}
+					style={{ height: "100%" }}
 				>
 					<div className="mt-auto">
 						{messages.map((msg) => (
@@ -62,7 +62,7 @@ const MainContent = ({
 					</div>
 
 					<label
-						className={`btn d-flex align-items-center justify-content-center p-2 rounded-5 ${isOnline ? "btn-outline-primary" : "btn-outline-secondary"}`}
+						className={`btn d-flex align-items-center justify-content-center p-2 rounded-5 border-2 ${isOnline ? "btn-outline-primary" : "btn-outline-secondary"}`}
 						style={{
 							width: "50px",
 							height: "50px",
@@ -96,11 +96,14 @@ const MainContent = ({
 							className=""
 							type="file"
 							hidden
+							multiple
 							disabled={!isOnline}
 							onChange={(e) => {
-								const file = e.target.files?.[0];
-								if (file) {
-									onFileSelect(file);
+								const files = e.target.files;
+								if (files) {
+									for (const file of files) {
+										onFileSelect(file);
+									}
 								}
 
 								e.target.value = "";

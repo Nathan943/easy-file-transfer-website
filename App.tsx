@@ -5,6 +5,7 @@ import Sidebar from "./src/components/Sidebar";
 import MainContent from "./src/components/MainContent";
 import { Message, Conversation, Client, IncomingFile } from "./src/types/types";
 import socketHandler from "./src/handlers/SocketHandler";
+import fileStorageHandler from "./src/handlers/FileStorageHandler";
 
 const App = () => {
 	//List of connected clients, stored as name and id
@@ -41,6 +42,7 @@ const App = () => {
 			return [];
 		}
 	});
+	let isRemoteUpdate = useRef(false);
 
 	//Incoming values from websocket server
 	const [pairingCode, setPairingCode] = useState(0);
@@ -101,6 +103,28 @@ const App = () => {
 		setName(name);
 	};
 
+	const rebuildConversations = async (conversations: Conversation[]) => {
+		return Promise.all(
+			conversations.map(async (conversation) => ({
+				...conversation,
+				messages: await Promise.all(
+					conversation.messages.map(async (message) => {
+						const file = await fileStorageHandler.getFile(
+							message.id,
+						);
+
+						if (!file) return message;
+
+						return {
+							...message,
+							downloadUrl: URL.createObjectURL(file),
+						};
+					}),
+				),
+			})),
+		);
+	};
+
 	useEffect(() => {
 		//Save client list when it updates
 		localStorage.setItem("contacts", JSON.stringify(clients));
@@ -112,6 +136,11 @@ const App = () => {
 	}, [clients]);
 
 	useEffect(() => {
+		if (isRemoteUpdate.current) {
+			isRemoteUpdate.current = false;
+			return;
+		}
+
 		const modifiedConversations = conversations.map((conversation) => ({
 			...conversation,
 			messages: conversation.messages.map((message) => ({
@@ -139,14 +168,29 @@ const App = () => {
 	}, [selectedClient]);
 
 	useEffect(() => {
-		const handleStorage = (e: StorageEvent) => {
+		const init = async () => {
+			await fileStorageHandler.connect();
+
+			const rebuilt = await rebuildConversations(conversations);
+			setConversations(rebuilt);
+		};
+
+		init();
+	}, []);
+
+	useEffect(() => {
+		const handleStorage = async (e: StorageEvent) => {
 			if (e.key == "displayName") {
 				setName(e.newValue ?? "");
 			}
 
 			if (e.key == "conversations") {
 				try {
-					setConversations(e.newValue ? JSON.parse(e.newValue) : []);
+					const stored = e.newValue ? JSON.parse(e.newValue) : [];
+
+					const rebuilt = await rebuildConversations(stored);
+					isRemoteUpdate.current = true;
+					setConversations(rebuilt);
 				} catch {
 					setConversations([]);
 				}
@@ -186,8 +230,12 @@ const App = () => {
 			});
 		});
 
-		socketHandler.onFileReceived((client: Client, file: File) => {
+		socketHandler.onFileReceived(async (client: Client, file: File) => {
 			const message = buildMessage(file, client);
+
+			console.log("file received");
+			await fileStorageHandler.addFile(message.id, file);
+
 			addMessage(client, message);
 		});
 
@@ -241,8 +289,11 @@ const App = () => {
 					pairingCode={pairingCode}
 					generatePairingCode={socketHandler.getPairingCode}
 					connectWithClient={socketHandler.connectWithClient}
-					onFileSelect={(file) => {
+					onFileSelect={async (file) => {
 						const message = buildMessage(file);
+
+						await fileStorageHandler.addFile(message.id, file);
+
 						addMessage(selectedClient, message);
 						socketHandler.send(file, selectedClient);
 					}}
