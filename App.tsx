@@ -28,10 +28,12 @@ const App = () => {
 		online: false,
 	});
 
+	//For the MainContent component to decide whether to show the pairing menu or not
 	const [showMenu, setShowMenu] = useState(false);
 
 	//Hold all conversations, storing id and messages
 	const [conversations, setConversations] = useState<Conversation[]>(() => {
+		//Load in converstaions from local storage if it has them
 		const saved = localStorage.getItem("conversations");
 
 		if (!saved) return [];
@@ -44,7 +46,7 @@ const App = () => {
 	});
 	let isRemoteUpdate = useRef(false);
 
-	//Incoming values from websocket server
+	//Pairing code from websocket server
 	const [pairingCode, setPairingCode] = useState(0);
 	const [name, setName] = useState(localStorage.getItem("displayName") ?? "");
 
@@ -76,8 +78,9 @@ const App = () => {
 		});
 	};
 
-	//Get all messages for a conversation
+	//Get all messages with the selected client
 	const getMessages = () => {
+		//Find the selected client's conversation
 		const conversation = conversations.find(
 			(conversation) => conversation.client.id == selectedClient.id,
 		);
@@ -98,23 +101,31 @@ const App = () => {
 		return msg;
 	};
 
+	//Triggered when user wants to change their name
 	const editName = (name: string) => {
 		socketHandler.editName(name);
 		setName(name);
 	};
 
+	/*
+	Give each message a download link for its saved file, if the file exists
+	Triggers when the client first connects and whenever a new message is saved to the database
+	*/
 	const rebuildConversations = async (conversations: Conversation[]) => {
+		//Loop through every message in every conversation
 		return Promise.all(
 			conversations.map(async (conversation) => ({
 				...conversation,
 				messages: await Promise.all(
 					conversation.messages.map(async (message) => {
+						//Check if there is a saved file in the database
 						const file = await fileStorageHandler.getFile(
 							message.id,
 						);
 
 						if (!file) return message;
 
+						//Create a download link for the file
 						return {
 							...message,
 							downloadUrl: URL.createObjectURL(file),
@@ -125,9 +136,10 @@ const App = () => {
 		);
 	};
 
+	//Update local storage when a new contact is added
 	useEffect(() => {
-		//Save client list when it updates
 		localStorage.setItem("contacts", JSON.stringify(clients));
+
 		for (const client of clients) {
 			if (client.id == selectedClient.id) {
 				setSelectedClient(client);
@@ -135,7 +147,9 @@ const App = () => {
 		}
 	}, [clients]);
 
+	//Update local storage when a new message or conversation is added
 	useEffect(() => {
+		//Ensures the update doesn't infinitely loop
 		if (isRemoteUpdate.current) {
 			isRemoteUpdate.current = false;
 			return;
@@ -157,16 +171,19 @@ const App = () => {
 		);
 	}, [conversations]);
 
+	//Update local storage when name is changed
 	useEffect(() => {
 		localStorage.setItem("displayName", name);
 	}, [name]);
 
+	//Update document title when selectedClient is changed
 	useEffect(() => {
-		document.title = selectedClient
+		document.title = selectedClient.name
 			? `File sharing with: ${selectedClient.name}`
 			: "File sharing";
-	}, [selectedClient]);
+	}, [selectedClient.name]);
 
+	//On program start, initialize the databases and assign links for files if necessary
 	useEffect(() => {
 		const init = async () => {
 			await fileStorageHandler.connect();
@@ -178,12 +195,15 @@ const App = () => {
 		init();
 	}, []);
 
+	//When local storage changes, do different things based on what changed
 	useEffect(() => {
 		const handleStorage = async (e: StorageEvent) => {
+			//If displayName is edited, change the UI to reflect that
 			if (e.key == "displayName") {
 				setName(e.newValue ?? "");
 			}
 
+			//If conversations is edited, rebuild the file links again
 			if (e.key == "conversations") {
 				try {
 					const stored = e.newValue ? JSON.parse(e.newValue) : [];
@@ -204,14 +224,19 @@ const App = () => {
 		};
 	}, []);
 
+	//This useEffect handles interfacing with the WebSocket (intializes on program start)
 	useEffect(() => {
-		//Generate a new id for this client if there isnt one already
+		//Generate a new id for this client if there isnt one saved in local storage
 		const clientId =
 			localStorage.getItem("clientId") ?? crypto.randomUUID();
 		localStorage.setItem("clientId", clientId);
 
+		//Initialize WS connection
 		socketHandler.connect(String(clientId));
 
+		/*
+		These are a bunch of functions for changing UI based on incoming data from the server
+		*/
 		socketHandler.onPairCodeReceived((code: number) => {
 			setPairingCode(code);
 		});
@@ -234,8 +259,10 @@ const App = () => {
 			const message = buildMessage(file, client);
 
 			console.log("file received");
+			//Upload to database
 			await fileStorageHandler.addFile(message.id, file);
 
+			//Add file to the specified client
 			addMessage(client, message);
 		});
 

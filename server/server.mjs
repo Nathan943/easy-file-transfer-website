@@ -8,11 +8,13 @@ const clientAndNames = new Map();
 const pairingCodes = new Map();
 const sessions = new Map();
 
+//Create a pairing code for the client
 function generatePairingCode() {
 	let num = "000000" + Math.floor(Math.random() * 999999);
 	return num.substring(num.length - 6);
 }
 
+//Create a name for the client
 function generateName() {
 	let name = "";
 	for (var i = 0; i < 4; i++) {
@@ -22,6 +24,7 @@ function generateName() {
 	return name;
 }
 
+//Log the connection between two clients
 function linkSession(id1, id2) {
 	if (!sessions.has(id1)) {
 		sessions.set(id1, new Set());
@@ -37,7 +40,6 @@ function linkSession(id1, id2) {
 /* 
 When client is connected
 */
-
 wss.on("connection", function connection(ws) {
 	//Vars for file transfer
 	var canTransfer = false;
@@ -51,7 +53,9 @@ wss.on("connection", function connection(ws) {
     When client sends a message
     */
 	ws.on("message", (msg, isBinary) => {
+		//Check for file data
 		if (isBinary) {
+			//Send the data to the first instance of the target client
 			if (canTransfer && transferTargets) {
 				if (transferTargets[0].readyState == WebSocket.OPEN) {
 					transferTargets[0].send(msg);
@@ -60,6 +64,7 @@ wss.on("connection", function connection(ws) {
 			return;
 		}
 
+		//Otherwise, parse the JSON message
 		const parsedMessage = JSON.parse(msg.toString());
 
 		/*
@@ -67,6 +72,7 @@ wss.on("connection", function connection(ws) {
         */
 		switch (parsedMessage.signal) {
 			case "ON_CLIENT_CONNECT":
+				//Log the session that just connected
 				id = parsedMessage.clientId;
 
 				if (!clients.has(id)) {
@@ -75,7 +81,7 @@ wss.on("connection", function connection(ws) {
 
 				clients.get(id).add(ws);
 
-				//Generate name and store it
+				//Generate a name, store it, and send it to the client
 				if (!clientAndNames.has(id)) {
 					const name = generateName();
 					clientAndNames.set(id, name);
@@ -87,9 +93,7 @@ wss.on("connection", function connection(ws) {
 					);
 				}
 
-				/*
-				Send a list of all previously connected clients and their online statuses
-				*/
+				//Send a list of all previously connected clients and their online statuses
 				const contacts = [];
 
 				const contactsForClient = sessions.get(id) ?? [];
@@ -123,8 +127,8 @@ wss.on("connection", function connection(ws) {
 
 				break;
 			case "REQUEST_PAIRING_CODE":
+				//Generate and send a pairing code
 				let newPairingCode = generatePairingCode();
-				//Send code and log it
 				ws.send(
 					JSON.stringify({
 						signal: "PAIRING_CODE",
@@ -140,10 +144,12 @@ wss.on("connection", function connection(ws) {
 				break;
 
 			case "CHANGE_NAME":
+				//Change the clients name to what they sent
 				clientAndNames.set(id, parsedMessage.name);
 
 				const connectedClients = sessions.get(id);
 
+				//Alert every connected client to the name change
 				if (connectedClients) {
 					for (const targetId of connectedClients) {
 						//Each client could have multiple tabs associated with it, so loop through those and alert each tab to the name change
@@ -172,6 +178,7 @@ wss.on("connection", function connection(ws) {
 						parsedMessage.pairingCode,
 					);
 
+					//Can't connect to yourself
 					if (targetId == id) {
 						ws.send(
 							JSON.stringify({
@@ -187,6 +194,7 @@ wss.on("connection", function connection(ws) {
 					//Link two clients by id
 					linkSession(id, targetId);
 
+					//Send connection info to every client instance involved
 					ws.send(
 						JSON.stringify({
 							signal: "CONNECTED_CLIENT_INFO",
@@ -221,11 +229,12 @@ wss.on("connection", function connection(ws) {
 			case "FILE_META":
 				if (canTransfer) break;
 
-				//Check if the clients are allowed to transfer files
+				//Check if the clients are allowed to transfer files (connected)
 				for (const [key, value] of sessions) {
 					if (key == id) {
 						for (const x of value) {
 							if (x == parsedMessage.targetClientId) {
+								//Send the file meta to the main instance of the target client
 								canTransfer = true;
 
 								transferTargets = [...clients.get(x)];
@@ -250,6 +259,7 @@ wss.on("connection", function connection(ws) {
 
 				break;
 			case "FILE_END":
+				//Send the file end to the main instance of the target client
 				if (!transferTargets) break;
 
 				transferTargets[0].send(
@@ -267,7 +277,6 @@ wss.on("connection", function connection(ws) {
 	/* 
     When client is disconnected
     */
-
 	ws.on("close", function close() {
 		console.log("close received");
 
@@ -275,8 +284,10 @@ wss.on("connection", function connection(ws) {
 		const sockets = clients.get(id);
 
 		if (sockets) {
+			//Delete this instance of the client
 			sockets.delete(ws);
 
+			//If no other instances are open, alert every connection that this client is offline
 			if (sockets.size == 0) {
 				const contactsForClient = sessions.get(id) ?? [];
 

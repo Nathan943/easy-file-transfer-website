@@ -3,22 +3,29 @@
 */
 
 import { Client, IncomingFile, QueuedUpload } from "../types/types";
-import fileStorageHandler from "../handlers/FileStorageHandler";
 
-//128 kb chunks
+//Files are sent in chunks of CHUNK_SIZE
 const CHUNK_SIZE = 128 * 1024;
 
-//Websocket connection
+//Handle everything to do with the connection to the server and other clients
 class SocketHandler {
+	//WebSocket connection
 	private socket: WebSocket | null = null;
 
+	//This client's id
 	private clientId = "";
 
+	//Stores the client a file is being sent from
+	private currentClient: Client | null = null;
 	private incomingFile: IncomingFile | null = null;
 
-	private linkedClients: Client[] = [];
-	private currentClient: Client | null = null;
+	//Files are put into a queue when sending to another client
+	private uploadQueue: QueuedUpload[] = [];
+	private uploading: boolean = false;
 
+	/*
+	Callback functions so App can receive data
+	*/
 	private onPairCodeReceivedCallback?: (code: number) => void;
 	private onNameReceivedCallback?: (
 		name: string,
@@ -35,18 +42,13 @@ class SocketHandler {
 		targetClientId: string,
 		name: string,
 	) => void;
-	private onFileChunkCallback?: (
-		clientId: string,
-		percentageCompletion: number,
-	) => void;
 
-	private uploadQueue: QueuedUpload[] = [];
-	private uploading: boolean = false;
-
+	//Initialize WebSocket connection
 	connect(clientId: string) {
 		this.socket = new WebSocket("ws://localhost:8080");
 		this.clientId = clientId;
 
+		//Connect to the server and tell it that this client is online
 		this.socket.addEventListener("open", () => {
 			console.log("CONNECTED");
 			this.socket?.send(
@@ -57,6 +59,7 @@ class SocketHandler {
 			);
 		});
 
+		//Listen for messages from the server
 		this.socket.addEventListener("message", (msg) => {
 			//Check for raw file data first
 			if (typeof msg.data !== "string") {
@@ -64,33 +67,23 @@ class SocketHandler {
 
 				this.incomingFile.chunks.push(msg.data);
 
-				//Update progress bar
-				const percentageCompletion =
-					(this.incomingFile.chunks.length * CHUNK_SIZE) /
-					this.incomingFile.size;
-
-				if (this.currentClient) {
-					this.onFileChunkCallback?.(
-						this.currentClient?.id,
-						percentageCompletion,
-					);
-				}
-
 				return;
 			}
 
 			//If not raw file data, parse the JSON message
 			const parsedMessage = JSON.parse(msg.data);
 
-			//And decide what to do with the message
+			/*
+			Decide what to do with the message
+			*/
 			switch (parsedMessage.signal) {
 				case "PAIRING_CODE":
-					//Display pairing code from server
+					//Display pairing code in App
 					const pairingCode = parsedMessage.pairingCode;
 					this.onPairCodeReceivedCallback?.(pairingCode);
 					break;
 				case "CLIENT_NAME":
-					//Display name sent from server
+					//Display name in App
 					this.onNameReceivedCallback?.(
 						parsedMessage.name,
 						parsedMessage.isPrimaryTab,
@@ -98,7 +91,7 @@ class SocketHandler {
 					break;
 
 				case "CLIENT_NAME_CHANGED":
-					console.log("client name change");
+					//Change name for a contact in App
 					this.onNameChangedCallback?.(
 						parsedMessage.clientId,
 						parsedMessage.name,
@@ -106,13 +99,12 @@ class SocketHandler {
 					break;
 
 				case "CONTACT_LIST":
-					/*
-					Go through the list of contacts and send the information to App to be displayed
-					*/
+					//Display connected clients in App
 					this.onContactsReceivedCallback?.(parsedMessage.contacts);
 					break;
 
 				case "CLIENT_STATUS_CHANGE":
+					//Change online status for a client in App
 					this.onClientOnlineStatusChangeCallback?.(
 						parsedMessage.clientId,
 						parsedMessage.online,
@@ -120,6 +112,8 @@ class SocketHandler {
 					break;
 
 				case "CONNECTED_CLIENT_INFO":
+					//Add new contact in App
+
 					//If no name or id was sent, do nothing (usually means pairing failed)
 					if (parsedMessage.clientId == null) break;
 
@@ -151,9 +145,9 @@ class SocketHandler {
 					break;
 
 				case "FILE_END":
+					//Reconstruct a file now that all information has been sent, and send the file to App
 					if (!this.incomingFile) break;
 
-					//Reconstruct the file
 					const reconstructedBlob = new Blob(
 						this.incomingFile.chunks,
 						{ type: this.incomingFile.type },
@@ -179,19 +173,23 @@ class SocketHandler {
 			}
 		});
 
+		//Listen for connection close
 		this.socket.addEventListener("close", () => {
 			console.log("DISCONNECTED");
 		});
 
+		//Listen for connection error
 		this.socket.addEventListener("error", () => {
 			console.log("ERROR");
 		});
 	}
 
+	//Close the socket connection
 	disconnect() {
 		this.socket?.close();
 	}
 
+	//Request pairing code from server
 	getPairingCode = () => {
 		this.socket?.send(
 			JSON.stringify({
@@ -200,6 +198,7 @@ class SocketHandler {
 		);
 	};
 
+	//Request name change
 	editName = (name: string) => {
 		this.socket?.send(
 			JSON.stringify({
@@ -209,6 +208,7 @@ class SocketHandler {
 		);
 	};
 
+	//Ask server to connect with another client
 	connectWithClient = (pairingCode: string) => {
 		this.socket?.send(
 			JSON.stringify({
@@ -218,6 +218,7 @@ class SocketHandler {
 		);
 	};
 
+	//Start the process of sending a file to the server
 	send(file: File, targetClient: Client) {
 		if (!file) return;
 		if (!targetClient) return;
@@ -225,9 +226,7 @@ class SocketHandler {
 		//Add file to a queue
 		this.uploadQueue.push({ file: file, targetClient: targetClient });
 
-		if (this.uploading) return;
-		if (this.uploadQueue.length == 0) return;
-
+		//Process queue one file at a time
 		this.processQueue();
 	}
 
@@ -236,23 +235,23 @@ class SocketHandler {
 		if (this.uploading) return;
 		if (this.uploadQueue.length == 0) return;
 
+		//Get next file in line and send it
 		const uploadData = this.uploadQueue.shift();
-
 		if (!uploadData) return;
 
 		this.uploading = true;
 
-		//Send file data
 		this.sendFile(uploadData);
 	}
 
 	//Send file in chunks
 	private sendFile(uploadData: QueuedUpload) {
+		//Keep track of how much of the file has been sent
 		let counter = 0;
 
 		const file = uploadData.file;
 
-		//Send metadata
+		//Send metadata first
 		this.socket?.send(
 			JSON.stringify({
 				signal: "FILE_META",
@@ -264,34 +263,26 @@ class SocketHandler {
 		);
 
 		const sendChunk = () => {
+			//If the connection to the server closes stop uploading
 			if (!this.socket || this.socket.readyState != WebSocket.OPEN) {
 				this.uploading = false;
 				return;
 			}
 
+			//Loop through every full chunk and send it
+			//Then send the last partial chunk
 			if (counter + CHUNK_SIZE < file.size) {
-				//Loop through every full chunk and send it
-				//Get chunk to send
+				//Get chunk and send
 				const chunk = file.slice(counter, counter + CHUNK_SIZE);
-
 				this.socket?.send(chunk);
 
 				counter += CHUNK_SIZE;
-
-				const percentageCompletion = counter / file.size;
-				this.onFileChunkCallback?.(
-					uploadData.targetClient.id,
-					percentageCompletion,
-				);
 
 				setTimeout(sendChunk, 0);
 			} else {
 				//Send the last chunk, which is not a full 128kb
 				const last = file.slice(counter, file.size);
 				this.socket?.send(last);
-
-				//Tell progress counter file is done sending
-				this.onFileChunkCallback?.(uploadData.targetClient.id, 1);
 
 				//Send end signal
 				this.socket?.send(
@@ -309,6 +300,9 @@ class SocketHandler {
 		sendChunk();
 	}
 
+	/*
+	More callback function stuff so App can receive data
+	*/
 	onPairCodeReceived(callback: (code: number) => void) {
 		this.onPairCodeReceivedCallback = callback;
 	}
@@ -337,12 +331,6 @@ class SocketHandler {
 		callback: (targetClientId: string, online: boolean) => void,
 	) {
 		this.onClientOnlineStatusChangeCallback = callback;
-	}
-
-	onFileChunk(
-		callback: (clientId: string, percentageCompletion: number) => void,
-	) {
-		this.onFileChunkCallback = callback;
 	}
 }
 
