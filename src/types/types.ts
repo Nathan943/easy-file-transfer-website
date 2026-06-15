@@ -3,7 +3,7 @@ export interface Message {
 	sender?: Client;
 	filename: string;
 	downloadUrl?: string;
-	timestamp: string;
+	timestamp?: string;
 }
 
 export interface Conversation {
@@ -21,6 +21,7 @@ export interface IncomingFile {
 	name: string;
 	type: string;
 	size: number;
+	timestamp: string;
 	chunks: Blob[];
 }
 
@@ -37,4 +38,5 @@ export interface OutgoingFileData {
 export interface QueuedUpload {
 	file: File;
 	targetClient: Client;
+	messageId: string;
 }
