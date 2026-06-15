@@ -21,7 +21,6 @@ export interface IncomingFile {
 	name: string;
 	type: string;
 	size: number;
-	timestamp: string;
 	chunks: Blob[];
 }
 

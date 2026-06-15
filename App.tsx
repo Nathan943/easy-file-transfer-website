@@ -103,6 +103,17 @@ const App = () => {
 		return msg;
 	};
 
+	const buildTemporaryMessage = (file: IncomingFile, client: Client) => {
+		const msg: Message = {
+			id: crypto.randomUUID(),
+			sender: client,
+			filename: file.name,
+			timestamp: undefined,
+		};
+
+		return msg;
+	};
+
 	const editMessage = (
 		id: string,
 		sender?: Client,
@@ -284,16 +295,29 @@ const App = () => {
 			});
 		});
 
-		socketHandler.onFileReceived(async (client: Client, file: File) => {
-			const message = buildMessage(file, client, Date.now());
+		socketHandler.onMetaReceived((client: Client, file: IncomingFile) => {
+			const message = buildTemporaryMessage(file, client);
 
-			console.log("file received");
-			//Upload to database
-			await fileStorageHandler.addFile(message.id, file);
-
-			//Add file to the specified client
 			addMessage(client, message);
+			return message.id;
 		});
+
+		socketHandler.onFileReceived(
+			async (client: Client, file: File, messageId: string) => {
+				console.log("file received");
+				//Upload to database
+				await fileStorageHandler.addFile(messageId, file);
+
+				//Add file to the specified client
+				editMessage(
+					messageId,
+					client,
+					file.name,
+					URL.createObjectURL(file),
+					Date.now(),
+				);
+			},
+		);
 
 		socketHandler.onNameChanged((targetClientId: string, name: string) => {
 			setClients((prev) =>

@@ -18,6 +18,7 @@ class SocketHandler {
 	//Stores the client a file is being sent from
 	private currentClient: Client | null = null;
 	private incomingFile: IncomingFile | null = null;
+	private currentMessageId: string | undefined;
 
 	//Files are put into a queue when sending to another client
 	private uploadQueue: QueuedUpload[] = [];
@@ -32,7 +33,11 @@ class SocketHandler {
 		isPrimaryTab: boolean,
 	) => void;
 	private onClientConnectedCallback?: (client: Client) => void;
-	private onFileReceivedCallback?: (client: Client, file: File) => void;
+	private onFileReceivedCallback?: (
+		client: Client,
+		file: File,
+		messageId: string,
+	) => void;
 	private onContactsReceivedCallback?: (contacts: Client[]) => void;
 	private onClientOnlineStatusChangeCallback?: (
 		targetClientId: string,
@@ -43,6 +48,10 @@ class SocketHandler {
 		name: string,
 	) => void;
 	private onFileSentCallback?: (messageId: string) => void;
+	private onMetaReceivedCallback?: (
+		client: Client,
+		file: IncomingFile,
+	) => string;
 
 	//Initialize WebSocket connection
 	connect(clientId: string) {
@@ -141,9 +150,15 @@ class SocketHandler {
 						name: parsedMessage.name,
 						type: parsedMessage.type,
 						size: parsedMessage.size,
-						timestamp: parsedMessage.timestamp,
 						chunks: [],
 					};
+
+					if (!this.currentClient) break;
+					if (!this.incomingFile) break;
+					this.currentMessageId = this.onMetaReceivedCallback?.(
+						this.currentClient,
+						this.incomingFile,
+					);
 					break;
 
 				case "FILE_END":
@@ -164,14 +179,17 @@ class SocketHandler {
 					);
 
 					if (!this.currentClient) break;
+					if (!this.currentMessageId) break;
 
 					this.onFileReceivedCallback?.(
 						this.currentClient,
 						reconstructedFile,
+						this.currentMessageId,
 					);
 
 					this.incomingFile = null;
 					this.currentClient = null;
+					this.currentMessageId = undefined;
 
 					break;
 			}
@@ -255,8 +273,6 @@ class SocketHandler {
 
 		const file = uploadData.file;
 
-		const timestamp = Date.now();
-
 		//Send metadata first
 		this.socket?.send(
 			JSON.stringify({
@@ -264,7 +280,6 @@ class SocketHandler {
 				name: file.name,
 				type: file.type,
 				size: file.size,
-				timestamp,
 				targetClientId: uploadData.targetClient.id,
 			}),
 		);
@@ -324,7 +339,9 @@ class SocketHandler {
 		this.onClientConnectedCallback = callback;
 	}
 
-	onFileReceived(callback: (client: Client, file: File) => void) {
+	onFileReceived(
+		callback: (client: Client, file: File, messageId: string) => void,
+	) {
 		this.onFileReceivedCallback = callback;
 	}
 
@@ -344,6 +361,10 @@ class SocketHandler {
 
 	onFileSent(callback: (messageId: string) => void) {
 		this.onFileSentCallback = callback;
+	}
+
+	onMetaReceived(callback: (client: Client, file: IncomingFile) => string) {
+		this.onMetaReceivedCallback = callback;
 	}
 }
 
