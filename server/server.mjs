@@ -8,6 +8,7 @@ const clients = new Map();
 const clientAndNames = new Map();
 const pairingCodes = new Map();
 const sessions = new Map();
+const busyClients = new Set();
 
 const adjectives = (await fs.readFile("../src/names/adjectives.txt", "utf-8"))
 	.split(/\r?\n/)
@@ -56,10 +57,13 @@ wss.on("connection", function connection(ws) {
 	//Vars for file transfer
 	var canTransfer = false;
 	var transferTargets = null;
+	var currentMessageId = null;
+	var currentTargetClientId = null;
 
 	let id = "";
 
 	console.log("Total clients: ", clients.size + 1);
+	console.log(clients);
 
 	/* 
     When client sends a message
@@ -71,6 +75,34 @@ wss.on("connection", function connection(ws) {
 			if (canTransfer && transferTargets) {
 				if (transferTargets[0].readyState == WebSocket.OPEN) {
 					transferTargets[0].send(msg);
+				} else {
+					ws.send(
+						JSON.stringify({
+							signal: "FILE_FAILED",
+							messageId: currentMessageId,
+						}),
+					);
+
+					//If there are still other instances of the target client open, tell them the transfer with the original one failed
+					if (transferTargets) {
+						for (const target of transferTargets) {
+							target.send(
+								JSON.stringify({
+									signal: "FILE_FAILED",
+									messageId: currentMessageId,
+								}),
+							);
+						}
+					}
+
+					if (currentTargetClientId) {
+						busyClients.delete(currentTargetClientId);
+						currentTargetClientId = null;
+					}
+
+					canTransfer = false;
+					transferTargets = null;
+					currentMessageId = null;
 				}
 			}
 			return;
@@ -84,6 +116,10 @@ wss.on("connection", function connection(ws) {
         */
 		switch (parsedMessage.signal) {
 			case "ON_CLIENT_CONNECT":
+				console.log(
+					`MESSAGE RECEIVED: ON_CLIENT_CONNECTED\n---------------------------------------\nClient ID: ${parsedMessage.clientId}`,
+				);
+
 				//Log the session that just connected
 				id = parsedMessage.clientId;
 
@@ -139,6 +175,10 @@ wss.on("connection", function connection(ws) {
 
 				break;
 			case "REQUEST_PAIRING_CODE":
+				console.log(
+					`MESSAGE RECEIVED: REQUEST_PAIRING_CODE\n---------------------------------------`,
+				);
+
 				//Generate and send a pairing code
 				let newPairingCode = generatePairingCode();
 				ws.send(
@@ -152,10 +192,14 @@ wss.on("connection", function connection(ws) {
 				//Delete pairing code after 60 seconds
 				setTimeout(() => {
 					pairingCodes.delete(newPairingCode);
+					console.log("Pairing code deleted");
 				}, 60000);
 				break;
 
 			case "CHANGE_NAME":
+				console.log(
+					`MESSAGE RECEIVED: CHANGE_NAME\n---------------------------------------\nName: ${parsedMessage.name}`,
+				);
 				//Change the clients name to what they sent
 				clientAndNames.set(id, parsedMessage.name);
 
@@ -181,9 +225,12 @@ wss.on("connection", function connection(ws) {
 
 				break;
 			case "CONNECT_WITH_CLIENT":
+				console.log(
+					`MESSAGE RECEIVED: CONNECT_WITH_CLIENT\n---------------------------------------\nPairing code: ${parsedMessage.pairingCode}`,
+				);
 				//Check if valid pairing code
 				if (pairingCodes.has(parsedMessage.pairingCode)) {
-					console.log("Connected!");
+					console.log("Connected");
 
 					//Get id of the target to pair with
 					const targetId = pairingCodes.get(
@@ -239,7 +286,24 @@ wss.on("connection", function connection(ws) {
 				}
 				break;
 			case "FILE_META":
-				if (canTransfer) break;
+				console.log(
+					`MESSAGE RECEIVED: FILE_META\n---------------------------------------\nTarget client ID: ${parsedMessage.targetClientId}\nFilename: ${parsedMessage.name}\nFile type: ${parsedMessage.type}\nTimestamp: ${parsedMessage.timestamp}\nFile size: ${parsedMessage.size}\nMessage ID: ${parsedMessage.messageId}`,
+				);
+
+				if (busyClients.has(parsedMessage.targetClientId)) {
+					ws.send(
+						JSON.stringify({
+							signal: "FILE_FAILED",
+							messageId: parsedMessage.messageId,
+						}),
+					);
+					break;
+				}
+
+				currentTargetClientId = parsedMessage.targetClientId;
+				busyClients.add(parsedMessage.targetClientId);
+
+				currentMessageId = parsedMessage.messageId;
 
 				//Check if the clients are allowed to transfer files (connected)
 				for (const [key, value] of sessions) {
@@ -261,8 +325,8 @@ wss.on("connection", function connection(ws) {
 										},
 										name: parsedMessage.name,
 										type: parsedMessage.type,
-										timestamp: parsedMessage.timestamp,
 										size: parsedMessage.size,
+										messageId: parsedMessage.messageId,
 									}),
 								);
 							}
@@ -272,15 +336,34 @@ wss.on("connection", function connection(ws) {
 
 				break;
 			case "FILE_END":
+				console.log(
+					`MESSAGE RECEIVED: FILE_END\n---------------------------------------\nMessage ID: ${parsedMessage.messageId}`,
+				);
 				//Send the file end to the main instance of the target client
 				if (!transferTargets) break;
 
-				transferTargets[0].send(JSON.stringify({ signal: "FILE_END" }));
+				if (currentTargetClientId) {
+					busyClients.delete(currentTargetClientId);
+					currentTargetClientId = null;
+				}
 
-				ws.send(JSON.stringify({ signal: "FILE_SENT" }));
+				transferTargets[0].send(
+					JSON.stringify({
+						signal: "FILE_END",
+						messageId: parsedMessage.messageId,
+					}),
+				);
+
+				ws.send(
+					JSON.stringify({
+						signal: "FILE_SENT",
+						messageId: parsedMessage.messageId,
+					}),
+				);
 
 				canTransfer = false;
 				transferTargets = null;
+				currentMessageId = null;
 				break;
 		}
 	});
@@ -300,6 +383,25 @@ wss.on("connection", function connection(ws) {
 
 			//If no other instances are open, alert every connection that this client is offline
 			if (sockets.size == 0) {
+				if (canTransfer && transferTargets && currentMessageId) {
+					console.log("message failed");
+					transferTargets[0].send(
+						JSON.stringify({
+							signal: "FILE_FAILED",
+							messageId: currentMessageId,
+						}),
+					);
+
+					if (currentTargetClientId) {
+						busyClients.delete(currentTargetClientId);
+						currentTargetClientId = null;
+					}
+
+					canTransfer = false;
+					transferTargets = null;
+					currentMessageId = null;
+				}
+
 				const contactsForClient = sessions.get(id) ?? [];
 
 				for (const connectedClientId of contactsForClient) {

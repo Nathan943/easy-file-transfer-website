@@ -2,7 +2,7 @@
     Client application for the file transfer system
 */
 
-import { Client, IncomingFile, QueuedUpload } from "../types/types";
+import { Client, TemporaryFile, QueuedUpload } from "../types/types";
 
 //Files are sent in chunks of CHUNK_SIZE
 const CHUNK_SIZE = 128 * 1024;
@@ -17,7 +17,7 @@ class SocketHandler {
 
 	//Stores the client a file is being sent from
 	private currentClient: Client | null = null;
-	private incomingFile: IncomingFile | null = null;
+	private incomingFile: TemporaryFile | null = null;
 	private currentMessageId: string | undefined;
 
 	//Files are put into a queue when sending to another client
@@ -48,10 +48,12 @@ class SocketHandler {
 		name: string,
 	) => void;
 	private onFileSentCallback?: (messageId: string) => void;
+	private onFileFailedCallback?: (messageId: string) => void;
 	private onMetaReceivedCallback?: (
 		client: Client,
-		file: IncomingFile,
-	) => string;
+		file: TemporaryFile,
+		messageId: string,
+	) => void;
 
 	//Initialize WebSocket connection
 	connect(clientId: string) {
@@ -114,6 +116,16 @@ class SocketHandler {
 					break;
 
 				case "CLIENT_STATUS_CHANGE":
+					if (
+						parsedMessage.clientId == this.currentClient?.id &&
+						parsedMessage.online == false &&
+						this.currentMessageId
+					) {
+						this.uploading = false;
+						this.onFileFailedCallback?.(this.currentMessageId);
+						this.processQueue();
+					}
+
 					//Change online status for a client in App
 					this.onClientOnlineStatusChangeCallback?.(
 						parsedMessage.clientId,
@@ -153,17 +165,29 @@ class SocketHandler {
 						chunks: [],
 					};
 
-					if (!this.currentClient) break;
-					if (!this.incomingFile) break;
-					this.currentMessageId = this.onMetaReceivedCallback?.(
-						this.currentClient,
+					console.log(
+						"incomingFile before meta: ",
 						this.incomingFile,
 					);
+					console.log(parsedMessage.client);
+					console.log(this.currentClient);
+
+					if (!this.currentClient) break;
+					if (!this.incomingFile) break;
+
+					this.onMetaReceivedCallback?.(
+						this.currentClient,
+						this.incomingFile,
+						parsedMessage.messageId,
+					);
+
+					this.currentMessageId = parsedMessage.messageId;
 					break;
 
 				case "FILE_END":
 					//Reconstruct a file now that all information has been sent, and send the file to App
 					if (!this.incomingFile) break;
+					if (!this.currentClient) break;
 
 					const reconstructedBlob = new Blob(
 						this.incomingFile.chunks,
@@ -178,19 +202,29 @@ class SocketHandler {
 						{ type: this.incomingFile.type },
 					);
 
-					if (!this.currentClient) break;
-					if (!this.currentMessageId) break;
-
 					this.onFileReceivedCallback?.(
 						this.currentClient,
 						reconstructedFile,
-						this.currentMessageId,
+						parsedMessage.messageId,
 					);
 
 					this.incomingFile = null;
 					this.currentClient = null;
 					this.currentMessageId = undefined;
 
+					break;
+
+				case "FILE_FAILED":
+					this.uploading = false;
+					this.incomingFile = null;
+					this.onFileFailedCallback?.(parsedMessage.messageId);
+					this.processQueue();
+					break;
+				case "FILE_SENT":
+					this.uploading = false;
+					this.incomingFile = null;
+					this.onFileSentCallback?.(parsedMessage.messageId);
+					this.processQueue();
 					break;
 			}
 		});
@@ -247,6 +281,7 @@ class SocketHandler {
 
 		//Add file to a queue
 		this.uploadQueue.push({ file, targetClient, messageId });
+		console.log("upload added to queue");
 
 		//Process queue one file at a time
 		this.processQueue();
@@ -254,6 +289,9 @@ class SocketHandler {
 
 	//Process the file queue
 	private processQueue() {
+		console.log(this.uploading);
+		console.log(this.uploadQueue.length);
+
 		if (this.uploading) return;
 		if (this.uploadQueue.length == 0) return;
 
@@ -268,6 +306,8 @@ class SocketHandler {
 
 	//Send file in chunks
 	private sendFile(uploadData: QueuedUpload) {
+		console.log("file sending");
+
 		//Keep track of how much of the file has been sent
 		let counter = 0;
 
@@ -281,6 +321,7 @@ class SocketHandler {
 				type: file.type,
 				size: file.size,
 				targetClientId: uploadData.targetClient.id,
+				messageId: uploadData.messageId,
 			}),
 		);
 
@@ -291,10 +332,14 @@ class SocketHandler {
 				return;
 			}
 
+			if (this.uploading == false) return;
+
 			//Loop through every full chunk and send it
 			//Then send the last partial chunk
 			if (counter + CHUNK_SIZE < file.size) {
 				//Get chunk and send
+				console.log("chunk sent");
+
 				const chunk = file.slice(counter, counter + CHUNK_SIZE);
 				this.socket?.send(chunk);
 
@@ -305,19 +350,15 @@ class SocketHandler {
 				//Send the last chunk, which is not a full 128kb
 				const last = file.slice(counter, file.size);
 				this.socket?.send(last);
+				console.log("finished");
 
 				//Send end signal
 				this.socket?.send(
 					JSON.stringify({
 						signal: "FILE_END",
+						messageId: uploadData.messageId,
 					}),
 				);
-
-				this.onFileSentCallback?.(uploadData.messageId);
-
-				//Start the next upload if there is one queued
-				this.uploading = false;
-				this.processQueue();
 			}
 		};
 
@@ -363,7 +404,17 @@ class SocketHandler {
 		this.onFileSentCallback = callback;
 	}
 
-	onMetaReceived(callback: (client: Client, file: IncomingFile) => string) {
+	onFileFailed(callback: (messageId: string) => void) {
+		this.onFileFailedCallback = callback;
+	}
+
+	onMetaReceived(
+		callback: (
+			client: Client,
+			file: TemporaryFile,
+			messageId: string,
+		) => void,
+	) {
 		this.onMetaReceivedCallback = callback;
 	}
 }

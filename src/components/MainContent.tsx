@@ -56,6 +56,7 @@ const MainContent = ({
 								filename={msg.filename}
 								timestamp={msg.timestamp}
 								downloadUrl={msg.downloadUrl ?? ""}
+								status={msg.status}
 								key={msg.id}
 							/>
 						))}

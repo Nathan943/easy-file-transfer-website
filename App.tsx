@@ -3,7 +3,12 @@ import Header from "./src/components/Header";
 import Name from "./src/components/Name";
 import Sidebar from "./src/components/Sidebar";
 import MainContent from "./src/components/MainContent";
-import { Message, Conversation, Client, IncomingFile } from "./src/types/types";
+import {
+	Message,
+	Conversation,
+	Client,
+	TemporaryFile,
+} from "./src/types/types";
 import socketHandler from "./src/handlers/SocketHandler";
 import fileStorageHandler from "./src/handlers/FileStorageHandler";
 
@@ -52,7 +57,11 @@ const App = () => {
 
 	//Add a new message to a conversation, creating one if there is not already
 	const addMessage = (client: Client, message: Message) => {
+		console.log("adding message", message.id);
+
 		setConversations((prev) => {
+			console.log("previous conversations", prev);
+
 			//Check if a conversation for the client already exists
 			const conversationExists = prev.some(
 				(conversation) => conversation.client.id == client.id,
@@ -89,26 +98,32 @@ const App = () => {
 	};
 
 	//Build message contents to be displayed
-	const buildMessage = (file: File, client?: Client, timestamp?: number) => {
+	const buildMessage = (file: File, timestamp: number, client?: Client) => {
 		const msg: Message = {
 			id: crypto.randomUUID(),
 			sender: client,
 			filename: file.name,
 			downloadUrl: URL.createObjectURL(file),
-			timestamp: timestamp
-				? new Date(timestamp).toLocaleString()
-				: undefined,
+			timestamp: new Date(timestamp).toLocaleString(),
+			status: "sent",
 		};
 
 		return msg;
 	};
 
-	const buildTemporaryMessage = (file: IncomingFile, client: Client) => {
+	const buildTemporaryMessage = (
+		file: TemporaryFile,
+		client?: Client,
+		messageId?: string,
+		downloadUrl?: string,
+	) => {
 		const msg: Message = {
-			id: crypto.randomUUID(),
+			id: messageId ?? crypto.randomUUID(),
 			sender: client,
 			filename: file.name,
-			timestamp: undefined,
+			timestamp: "",
+			status: "sending",
+			...(downloadUrl != undefined && { downloadUrl }),
 		};
 
 		return msg;
@@ -119,7 +134,8 @@ const App = () => {
 		sender?: Client,
 		filename?: string,
 		downloadUrl?: string,
-		timestamp?: number,
+		timestamp?: string,
+		status?: "sending" | "sent" | "failed",
 	) => {
 		setConversations((prev) =>
 			prev.map((conversation) => ({
@@ -133,8 +149,9 @@ const App = () => {
 						...(filename != undefined && { filename }),
 						...(downloadUrl != undefined && { downloadUrl }),
 						...(timestamp != undefined && {
-							timestamp: new Date(timestamp).toLocaleString(),
+							timestamp: timestamp,
 						}),
+						...(status != undefined && { status }),
 					};
 				}),
 			})),
@@ -176,6 +193,22 @@ const App = () => {
 		);
 	};
 
+	const markIncompleteMessagesAsFailed = (conversations: Conversation[]) => {
+		return conversations.map((conversation) => ({
+			...conversation,
+			messages: conversation.messages.map((message) => {
+				if (message.status == "sending") {
+					return {
+						...message,
+						status: "failed" as const,
+					};
+				}
+
+				return message;
+			}),
+		}));
+	};
+
 	//Update local storage when a new contact is added
 	useEffect(() => {
 		localStorage.setItem("contacts", JSON.stringify(clients));
@@ -202,6 +235,7 @@ const App = () => {
 				sender: message.sender,
 				filename: message.filename,
 				timestamp: message.timestamp,
+				status: message.status,
 			})),
 		}));
 
@@ -229,7 +263,7 @@ const App = () => {
 			await fileStorageHandler.connect();
 
 			const rebuilt = await rebuildConversations(conversations);
-			setConversations(rebuilt);
+			setConversations(markIncompleteMessagesAsFailed(rebuilt));
 		};
 
 		init();
@@ -295,12 +329,13 @@ const App = () => {
 			});
 		});
 
-		socketHandler.onMetaReceived((client: Client, file: IncomingFile) => {
-			const message = buildTemporaryMessage(file, client);
+		socketHandler.onMetaReceived(
+			(client: Client, file: TemporaryFile, messageId: string) => {
+				const message = buildTemporaryMessage(file, client, messageId);
 
-			addMessage(client, message);
-			return message.id;
-		});
+				addMessage(client, message);
+			},
+		);
 
 		socketHandler.onFileReceived(
 			async (client: Client, file: File, messageId: string) => {
@@ -314,7 +349,8 @@ const App = () => {
 					client,
 					file.name,
 					URL.createObjectURL(file),
-					Date.now(),
+					new Date().toLocaleString(),
+					"sent",
 				);
 			},
 		);
@@ -345,7 +381,26 @@ const App = () => {
 		);
 
 		socketHandler.onFileSent((messageId: string) => {
-			editMessage(messageId, undefined, undefined, undefined, Date.now());
+			console.log("on file sent");
+			editMessage(
+				messageId,
+				undefined,
+				undefined,
+				undefined,
+				new Date().toLocaleString(),
+				"sent",
+			);
+		});
+
+		socketHandler.onFileFailed((messageId: string) => {
+			editMessage(
+				messageId,
+				undefined,
+				undefined,
+				undefined,
+				undefined,
+				"failed",
+			);
 		});
 
 		return () => {
@@ -374,7 +429,17 @@ const App = () => {
 					generatePairingCode={socketHandler.getPairingCode}
 					connectWithClient={socketHandler.connectWithClient}
 					onFileSelect={async (file) => {
-						const message = buildMessage(file);
+						const message = buildTemporaryMessage(
+							{
+								name: file.name,
+								type: file.type,
+								size: file.size,
+								chunks: [],
+							},
+							undefined,
+							undefined,
+							URL.createObjectURL(file),
+						);
 
 						await fileStorageHandler.addFile(message.id, file);
 

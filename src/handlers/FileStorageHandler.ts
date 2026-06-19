@@ -1,5 +1,5 @@
 //Files over this limit will not be stored
-const FILE_STORAGE_LIMIT = 250 * 1024 * 1024;
+const FILE_STORAGE_LIMIT = 256 * 1024 * 1024;
 
 //Handle the storage and retrieval of files in IndexedDB
 class FileStorageHandler {

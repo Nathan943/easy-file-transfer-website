@@ -3,7 +3,8 @@ export interface Message {
 	sender?: Client;
 	filename: string;
 	downloadUrl?: string;
-	timestamp?: string;
+	timestamp: string;
+	status: "sending" | "sent" | "failed";
 }
 
 export interface Conversation {
@@ -17,7 +18,7 @@ export interface Client {
 	online: boolean;
 }
 
-export interface IncomingFile {
+export interface TemporaryFile {
 	name: string;
 	type: string;
 	size: number;

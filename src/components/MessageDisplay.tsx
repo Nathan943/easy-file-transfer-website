@@ -5,6 +5,7 @@ interface Props {
 	filename: string;
 	timestamp: string;
 	downloadUrl: string;
+	status: "sending" | "sent" | "failed";
 }
 
 const MessageDisplay = ({
@@ -12,6 +13,7 @@ const MessageDisplay = ({
 	filename,
 	timestamp,
 	downloadUrl,
+	status,
 }: Props) => {
 	return (
 		<div className="d-flex w-100 justify-content-center">
@@ -34,7 +36,13 @@ const MessageDisplay = ({
 					>
 						{filename}
 					</h6>
-					<p className="mb-0">{timestamp ?? "Sending..."}</p>
+					<p className="mb-0">
+						{status == "sending"
+							? "Sending..."
+							: status == "failed"
+								? "Failed to send"
+								: timestamp}
+					</p>
 				</div>
 				{downloadUrl && (
 					<a href={downloadUrl} download={filename} className="m-2">
