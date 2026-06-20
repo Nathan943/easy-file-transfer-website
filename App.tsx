@@ -209,6 +209,30 @@ const App = () => {
 		}));
 	};
 
+	const deleteClient = async (client: Client) => {
+		const conversation = conversations.find(
+			(c) => c.client.id === client.id,
+		);
+
+		if (conversation) {
+			for (const message of conversation.messages) {
+				await fileStorageHandler.deleteFile(message.id);
+			}
+		}
+
+		setConversations((prev) =>
+			prev.filter((conversation) => conversation.client.id != client.id),
+		);
+
+		setClients((prev) => prev.filter((c) => c.id !== client.id));
+
+		if (selectedClient.id == client.id) {
+			setSelectedClient({ id: "", name: "", online: false });
+		}
+
+		socketHandler.deleteClient(client.id);
+	};
+
 	//Update local storage when a new contact is added
 	useEffect(() => {
 		localStorage.setItem("contacts", JSON.stringify(clients));
@@ -355,6 +379,20 @@ const App = () => {
 			},
 		);
 
+		socketHandler.onClientRemoved((clientId: string) => {
+			setConversations((prev) =>
+				prev.filter(
+					(conversation) => conversation.client.id != clientId,
+				),
+			);
+
+			setClients((prev) => prev.filter((c) => c.id !== clientId));
+
+			if (selectedClient.id == clientId) {
+				setSelectedClient({ id: "", name: "", online: false });
+			}
+		});
+
 		socketHandler.onNameChanged((targetClientId: string, name: string) => {
 			setClients((prev) =>
 				prev.map((client) =>
@@ -421,6 +459,7 @@ const App = () => {
 					}}
 					showMenu={showMenu}
 					setShowMenu={setShowMenu}
+					deleteClient={deleteClient}
 				/>
 
 				<MainContent

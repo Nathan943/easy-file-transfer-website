@@ -5,9 +5,15 @@ interface Props {
 	clients: Client[];
 	onSelectClient: (client: Client) => void;
 	deselect: number;
+	deleteClient: (client: Client) => void;
 }
 
-const ClientList = ({ clients, onSelectClient, deselect }: Props) => {
+const ClientList = ({
+	clients,
+	onSelectClient,
+	deselect,
+	deleteClient,
+}: Props) => {
 	const [selectedIndex, setSelectedIndex] = useState(-1);
 
 	useEffect(() => {
@@ -31,18 +37,34 @@ const ClientList = ({ clients, onSelectClient, deselect }: Props) => {
 						key={client.id}
 					>
 						{client.name}
-						<svg
-							height="20"
-							width="20"
-							xmlns="http://www.w3.org/2000/svg"
-						>
-							<circle
-								r="10"
-								cx="10"
-								cy="10"
-								fill={client.online ? "lime" : "gray"}
-							/>
-						</svg>
+
+						<div>
+							<svg
+								height="20"
+								width="20"
+								xmlns="http://www.w3.org/2000/svg"
+							>
+								<circle
+									r="10"
+									cx="10"
+									cy="10"
+									fill={client.online ? "lime" : "gray"}
+								/>
+							</svg>
+
+							<button
+								className="border-0 m-0 bg-transparent ps-2 pe-0"
+								style={{ lineHeight: 0 }}
+								onClick={() => deleteClient(client)}
+							>
+								<img
+									src="../src/icons/delete.png"
+									style={{
+										width: "20px",
+									}}
+								/>
+							</button>
+						</div>
 					</li>
 				))}
 			</ul>

@@ -11,6 +11,7 @@ interface Props {
 	onSelectClient: (client: Client) => void;
 	showMenu: boolean;
 	setShowMenu: (showMenu: boolean) => void;
+	deleteClient: (client: Client) => void;
 }
 
 const Sidebar = ({
@@ -20,13 +21,14 @@ const Sidebar = ({
 	showMenu,
 	setShowMenu,
 	editName,
+	deleteClient,
 }: Props) => {
 	const [deselect, setDeselect] = useState(0);
 
 	return (
 		<div
 			className="navbar flex-column align-items-start justify-content-start p-4 border rounded-0"
-			style={{ width: "250px", borderRadius: "10px" }}
+			style={{ width: "300px", borderRadius: "10px" }}
 		>
 			<PairingButton
 				showMenu={showMenu}
@@ -39,6 +41,7 @@ const Sidebar = ({
 				clients={clients}
 				onSelectClient={onSelectClient}
 				deselect={deselect}
+				deleteClient={deleteClient}
 			/>
 			<Name name={name} editName={editName} />
 		</div>

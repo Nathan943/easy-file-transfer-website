@@ -82,6 +82,20 @@ class FileStorageHandler {
 		});
 	}
 
+	async deleteFile(fileId: string) {
+		if (!this.db) return;
+
+		const transaction = this.db.transaction("messages", "readwrite");
+		const store = transaction.objectStore("messages");
+
+		store.delete(fileId);
+
+		return new Promise<void>((resolve, reject) => {
+			transaction.oncomplete = () => resolve();
+			transaction.onerror = () => reject(transaction.error);
+		});
+	}
+
 	//Get a file from the database
 	async getFile(fileId: string): Promise<File | null> {
 		if (!this.db) {

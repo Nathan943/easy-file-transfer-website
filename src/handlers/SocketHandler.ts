@@ -43,6 +43,7 @@ class SocketHandler {
 		targetClientId: string,
 		online: boolean,
 	) => void;
+	private onClientRemovedCallback?: (clientId: string) => void;
 	private onNameChangedCallback?: (
 		targetClientId: string,
 		name: string,
@@ -149,6 +150,14 @@ class SocketHandler {
 					this.onClientConnectedCallback?.(newClient);
 					break;
 
+				case "CLIENT_REMOVED":
+					if (parsedMessage.clientId == this.currentClient?.id) {
+						this.currentClient = null;
+					}
+
+					this.onClientRemovedCallback?.(parsedMessage.clientId);
+
+					break;
 				case "FILE_META":
 					console.log("meta received");
 					//Don't log new metadata if a file is still being sent
@@ -274,6 +283,15 @@ class SocketHandler {
 		);
 	};
 
+	deleteClient(clientId: string) {
+		this.socket?.send(
+			JSON.stringify({
+				signal: "REMOVE_CLIENT",
+				clientId: clientId,
+			}),
+		);
+	}
+
 	//Start the process of sending a file to the server
 	send(file: File, targetClient: Client, messageId: string) {
 		if (!file) return;
@@ -384,6 +402,10 @@ class SocketHandler {
 		callback: (client: Client, file: File, messageId: string) => void,
 	) {
 		this.onFileReceivedCallback = callback;
+	}
+
+	onClientRemoved(callback: (clientId: string) => void) {
+		this.onClientRemovedCallback = callback;
 	}
 
 	onNameChanged(callback: (targetClientId: string, name: string) => void) {

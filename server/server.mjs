@@ -325,6 +325,28 @@ wss.on("connection", function connection(ws) {
 					);
 				}
 				break;
+			case "REMOVE_CLIENT":
+				console.log(
+					`MESSAGE RECEIVED: REMOVE_CLIENT\n---------------------------------------\nClient ID: ${parsedMessage.clientId}`,
+				);
+
+				sessions.get(id)?.delete(parsedMessage.clientId);
+				sessions.get(parsedMessage.clientId)?.delete(id);
+
+				await saveData();
+
+				if (clients.has(parsedMessage.clientId)) {
+					for (const client of clients.get(parsedMessage.clientId)) {
+						client.send(
+							JSON.stringify({
+								signal: "CLIENT_REMOVED",
+								clientId: id,
+							}),
+						);
+					}
+				}
+
+				break;
 			case "FILE_META":
 				console.log(
 					`MESSAGE RECEIVED: FILE_META\n---------------------------------------\nTarget client ID: ${parsedMessage.targetClientId}\nFilename: ${parsedMessage.name}\nFile type: ${parsedMessage.type}\nTimestamp: ${parsedMessage.timestamp}\nFile size: ${parsedMessage.size}\nMessage ID: ${parsedMessage.messageId}`,
@@ -442,7 +464,7 @@ wss.on("connection", function connection(ws) {
 					currentMessageId = null;
 				}
 
-				const contactsForClient = sessions.get(id) ?? [];
+				const contactsForClient = sessions.get(id) ?? new Set();
 
 				for (const connectedClientId of contactsForClient) {
 					//When this client goes offline, update all other connections with the new information
