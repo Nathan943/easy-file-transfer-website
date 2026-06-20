@@ -1,6 +1,7 @@
 import WebSocket, { WebSocketServer } from "ws";
 import crypto from "node:crypto";
-import fs from "fs/promises";
+import * as fs from "node:fs/promises";
+import * as syncFs from "node:fs";
 
 const wss = new WebSocketServer({ port: 8080 });
 
@@ -50,6 +51,39 @@ function linkSession(id1, id2) {
 	sessions.get(id2).add(id1);
 }
 
+async function loadData() {
+	if (!syncFs.existsSync("../src/data/clients.json")) return;
+
+	const data = await fs.readFile("../src/data/clients.json", "utf-8");
+
+	const savedClients = data.trim() ? JSON.parse(data) : [];
+
+	//Load data for each client
+	for (const client of savedClients) {
+		clientAndNames.set(client.id, client.name);
+		sessions.set(client.id, new Set(client.contacts));
+	}
+}
+
+async function saveData() {
+	const savedClients = [];
+
+	for (const [id, name] of clientAndNames) {
+		savedClients.push({
+			id,
+			name,
+			contacts: [...(sessions.get(id) ?? [])],
+		});
+	}
+
+	await fs.writeFile(
+		"../src/data/clients.json",
+		JSON.stringify(savedClients, null, 2),
+	);
+}
+
+await loadData();
+
 /* 
 When client is connected
 */
@@ -68,7 +102,7 @@ wss.on("connection", function connection(ws) {
 	/* 
     When client sends a message
     */
-	ws.on("message", (msg, isBinary) => {
+	ws.on("message", async (msg, isBinary) => {
 		//Check for file data
 		if (isBinary) {
 			//Send the data to the first instance of the target client
@@ -133,6 +167,9 @@ wss.on("connection", function connection(ws) {
 				if (!clientAndNames.has(id)) {
 					const name = generateName();
 					clientAndNames.set(id, name);
+
+					await saveData();
+
 					ws.send(
 						JSON.stringify({
 							signal: "CLIENT_NAME",
@@ -203,6 +240,8 @@ wss.on("connection", function connection(ws) {
 				//Change the clients name to what they sent
 				clientAndNames.set(id, parsedMessage.name);
 
+				await saveData();
+
 				const connectedClients = sessions.get(id);
 
 				//Alert every connected client to the name change
@@ -252,6 +291,7 @@ wss.on("connection", function connection(ws) {
 
 					//Link two clients by id
 					linkSession(id, targetId);
+					await saveData();
 
 					//Send connection info to every client instance involved
 					ws.send(

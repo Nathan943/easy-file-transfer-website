@@ -1,0 +1,24 @@
+[
+  {
+    "id": "b24ef303-423c-42d4-bf25-b3835b754d03",
+    "name": "Eager Ape",
+    "contacts": [
+      "e3e69a93-c08f-4aa0-ba05-95db18334bdb"
+    ]
+  },
+  {
+    "id": "e3e69a93-c08f-4aa0-ba05-95db18334bdb",
+    "name": "Flabby Cod",
+    "contacts": [
+      "b24ef303-423c-42d4-bf25-b3835b754d03",
+      "5832216c-a5e0-4450-b1b8-d3465166775b"
+    ]
+  },
+  {
+    "id": "5832216c-a5e0-4450-b1b8-d3465166775b",
+    "name": "Puny Hyena",
+    "contacts": [
+      "e3e69a93-c08f-4aa0-ba05-95db18334bdb"
+    ]
+  }
+]
