@@ -1,0 +1,55 @@
+[
+  {
+    "id": "b24ef303-423c-42d4-bf25-b3835b754d03",
+    "name": "Eager Apes",
+    "contacts": [
+      "e3e69a93-c08f-4aa0-ba05-95db18334bdb"
+    ]
+  },
+  {
+    "id": "e3e69a93-c08f-4aa0-ba05-95db18334bdb",
+    "name": "Flabby Cod",
+    "contacts": [
+      "b24ef303-423c-42d4-bf25-b3835b754d03"
+    ]
+  },
+  {
+    "id": "5832216c-a5e0-4450-b1b8-d3465166775b",
+    "name": "Puny Hyena",
+    "contacts": []
+  },
+  {
+    "id": "f99d2119-4f32-422b-849d-c5202806dbca",
+    "name": "Drab Komodo",
+    "contacts": []
+  },
+  {
+    "id": "78adf4b7-1dce-4b9f-bb74-fa94374e3444",
+    "name": "Obnoxious Quetzal",
+    "contacts": []
+  },
+  {
+    "id": "4c269347-4a80-47dd-99c5-7ad073e40a22",
+    "name": "Tall Shrewsy",
+    "contacts": [
+      "a515af81-c1d3-47db-98c3-261afd48f11c"
+    ]
+  },
+  {
+    "id": "7ce0eaf1-8c10-4e0b-a104-11345df3438a",
+    "name": "Grumpy Waterbuffalo",
+    "contacts": []
+  },
+  {
+    "id": "a515af81-c1d3-47db-98c3-261afd48f11c",
+    "name": "Calm Cobra",
+    "contacts": [
+      "4c269347-4a80-47dd-99c5-7ad073e40a22"
+    ]
+  },
+  {
+    "id": "aa3c6b14-87a0-40f8-a3d6-1527b2380980",
+    "name": "Fierce Tarsier",
+    "contacts": []
+  }
+]

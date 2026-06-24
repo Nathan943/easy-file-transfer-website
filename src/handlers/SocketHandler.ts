@@ -55,6 +55,10 @@ class SocketHandler {
 		file: TemporaryFile,
 		messageId: string,
 	) => void;
+	private updateProgressBarCallback?: (
+		messageId: string,
+		progress: number,
+	) => void;
 
 	//Initialize WebSocket connection
 	connect(clientId: string) {
@@ -79,6 +83,16 @@ class SocketHandler {
 				if (!this.incomingFile) return;
 
 				this.incomingFile.chunks.push(msg.data);
+
+				if (!this.currentMessageId) return;
+
+				const progress =
+					(this.incomingFile.chunks.length * CHUNK_SIZE) /
+					this.incomingFile.size;
+				this.updateProgressBarCallback?.(
+					this.currentMessageId,
+					progress,
+				);
 
 				return;
 			}
@@ -217,6 +231,11 @@ class SocketHandler {
 						parsedMessage.messageId,
 					);
 
+					this.updateProgressBarCallback?.(
+						parsedMessage.messageId,
+						1,
+					);
+
 					this.incomingFile = null;
 					this.currentClient = null;
 					this.currentMessageId = undefined;
@@ -225,13 +244,11 @@ class SocketHandler {
 
 				case "FILE_FAILED":
 					this.uploading = false;
-					this.incomingFile = null;
 					this.onFileFailedCallback?.(parsedMessage.messageId);
 					this.processQueue();
 					break;
 				case "FILE_SENT":
 					this.uploading = false;
-					this.incomingFile = null;
 					this.onFileSentCallback?.(parsedMessage.messageId);
 					this.processQueue();
 					break;
@@ -307,9 +324,6 @@ class SocketHandler {
 
 	//Process the file queue
 	private processQueue() {
-		console.log(this.uploading);
-		console.log(this.uploadQueue.length);
-
 		if (this.uploading) return;
 		if (this.uploadQueue.length == 0) return;
 
@@ -362,6 +376,12 @@ class SocketHandler {
 				this.socket?.send(chunk);
 
 				counter += CHUNK_SIZE;
+
+				const progress = counter / file.size;
+				this.updateProgressBarCallback?.(
+					uploadData.messageId,
+					progress,
+				);
 
 				setTimeout(sendChunk, 0);
 			} else {
@@ -438,6 +458,10 @@ class SocketHandler {
 		) => void,
 	) {
 		this.onMetaReceivedCallback = callback;
+	}
+
+	updateProgressBar(callback: (messageId: string, progress: number) => void) {
+		this.updateProgressBarCallback = callback;
 	}
 }
 

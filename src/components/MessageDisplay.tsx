@@ -6,6 +6,7 @@ interface Props {
 	timestamp: string;
 	downloadUrl: string;
 	status: "sending" | "sent" | "failed";
+	progress?: number;
 }
 
 const MessageDisplay = ({
@@ -14,6 +15,7 @@ const MessageDisplay = ({
 	timestamp,
 	downloadUrl,
 	status,
+	progress,
 }: Props) => {
 	return (
 		<div className="d-flex w-100 justify-content-center">
@@ -37,12 +39,40 @@ const MessageDisplay = ({
 						{filename}
 					</h6>
 					<p className="mb-0">
-						{status == "sending"
-							? "Sending..."
-							: status == "failed"
-								? "Failed to send"
-								: timestamp}
+						{status == "failed"
+							? "Failed to send"
+							: status == "sent"
+								? timestamp
+								: ""}
 					</p>
+					{status == "sending" && (
+						<svg
+							width="200"
+							height="20"
+							viewBox="-2 -2 404 20"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<rect
+								width="400"
+								height="20"
+								rx="10"
+								ry="10"
+								fill="none"
+								stroke={isIncoming ? "black" : "white"}
+								strokeWidth="3"
+							/>
+
+							<rect
+								width={(progress ?? 0) * 400}
+								height="20"
+								rx="10"
+								ry="10"
+								fill={isIncoming ? "black" : "white"}
+								stroke={isIncoming ? "black" : "white"}
+								strokeWidth="3"
+							/>
+						</svg>
+					)}
 				</div>
 				{downloadUrl && (
 					<a href={downloadUrl} download={filename} className="m-2">

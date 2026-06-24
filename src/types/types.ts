@@ -5,6 +5,7 @@ export interface Message {
 	downloadUrl?: string;
 	timestamp: string;
 	status: "sending" | "sent" | "failed";
+	progress?: number;
 }
 
 export interface Conversation {

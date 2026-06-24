@@ -136,6 +136,7 @@ const App = () => {
 		downloadUrl?: string,
 		timestamp?: string,
 		status?: "sending" | "sent" | "failed",
+		progress?: number,
 	) => {
 		setConversations((prev) =>
 			prev.map((conversation) => ({
@@ -152,6 +153,7 @@ const App = () => {
 							timestamp: timestamp,
 						}),
 						...(status != undefined && { status }),
+						...(progress != undefined && { progress }),
 					};
 				}),
 			})),
@@ -260,6 +262,7 @@ const App = () => {
 				filename: message.filename,
 				timestamp: message.timestamp,
 				status: message.status,
+				progress: message.progress,
 			})),
 		}));
 
@@ -427,6 +430,7 @@ const App = () => {
 				undefined,
 				new Date().toLocaleString(),
 				"sent",
+				1,
 			);
 		});
 
@@ -438,8 +442,23 @@ const App = () => {
 				undefined,
 				undefined,
 				"failed",
+				0,
 			);
 		});
+
+		socketHandler.updateProgressBar(
+			(messageId: string, progress: number) => {
+				editMessage(
+					messageId,
+					undefined,
+					undefined,
+					undefined,
+					undefined,
+					"sending",
+					progress,
+				);
+			},
+		);
 
 		return () => {
 			socketHandler.disconnect();
