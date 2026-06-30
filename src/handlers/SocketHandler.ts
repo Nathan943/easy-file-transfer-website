@@ -5,7 +5,7 @@
 import { Client, TemporaryFile, QueuedUpload } from "../types/types";
 
 //Files are sent in chunks of CHUNK_SIZE
-const CHUNK_SIZE = 128 * 1024;
+const CHUNK_SIZE = 512 * 1024;
 
 //Handle everything to do with the connection to the server and other clients
 class SocketHandler {

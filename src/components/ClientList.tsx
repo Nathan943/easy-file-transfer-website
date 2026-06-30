@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import { Client } from "../types/types";
+import ClientListItem from "./ClientListItem";
 
 interface Props {
 	clients: Client[];
@@ -15,60 +16,27 @@ const ClientList = ({
 	deleteClient,
 }: Props) => {
 	const [selectedIndex, setSelectedIndex] = useState(-1);
+	const [isDeleteHovered, setIsDeleteHovered] = useState(false);
+	const [isItemHovered, setIsItemHovered] = useState(false);
 
 	useEffect(() => {
 		setSelectedIndex(-1);
 	}, [deselect]);
 
 	return (
-		<>
-			<ul className="list-group w-100">
-				{clients.map((client, index) => (
-					<li
-						className={
-							selectedIndex == index
-								? "list-group-item active d-flex justify-content-between align-items-center"
-								: "list-group-item d-flex justify-content-between align-items-center"
-						}
-						onClick={() => {
-							setSelectedIndex(index);
-							onSelectClient(client);
-						}}
-						key={client.id}
-					>
-						{client.name}
-
-						<div>
-							<svg
-								height="20"
-								width="20"
-								xmlns="http://www.w3.org/2000/svg"
-							>
-								<circle
-									r="10"
-									cx="10"
-									cy="10"
-									fill={client.online ? "lime" : "gray"}
-								/>
-							</svg>
-
-							<button
-								className="border-0 m-0 bg-transparent ps-2 pe-0"
-								style={{ lineHeight: 0 }}
-								onClick={() => deleteClient(client)}
-							>
-								<img
-									src="../src/icons/delete.png"
-									style={{
-										width: "20px",
-									}}
-								/>
-							</button>
-						</div>
-					</li>
-				))}
-			</ul>
-		</>
+		<ul className="list-group w-100 gap-1 pe-3 border-0">
+			{clients.map((client, index) => (
+				<ClientListItem
+					client={client}
+					selected={selectedIndex == index}
+					onClick={() => {
+						setSelectedIndex(index);
+						onSelectClient(client);
+					}}
+					onDelete={() => deleteClient(client)}
+				/>
+			))}
+		</ul>
 	);
 };
 

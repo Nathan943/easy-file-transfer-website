@@ -27,23 +27,34 @@ const Sidebar = ({
 
 	return (
 		<div
-			className="navbar flex-column align-items-start justify-content-start p-4 border rounded-0"
-			style={{ width: "300px", borderRadius: "10px" }}
+			className="d-flex flex-column align-items-start justify-content-start p-0 border rounded-0 vh-100"
+			style={{ width: "300px" }}
 		>
-			<PairingButton
-				showMenu={showMenu}
-				setShowMenu={setShowMenu}
-				onAddDevice={() => {
-					setDeselect((prev) => prev + 1);
-				}}
-			/>
-			<ClientList
-				clients={clients}
-				onSelectClient={onSelectClient}
-				deselect={deselect}
-				deleteClient={deleteClient}
-			/>
-			<Name name={name} editName={editName} />
+			<div className="p-4 pb-0">
+				<PairingButton
+					showMenu={showMenu}
+					setShowMenu={setShowMenu}
+					onAddDevice={() => {
+						setDeselect((prev) => prev + 1);
+					}}
+				/>
+			</div>
+
+			<div
+				className="flex-grow-1 overflow-y-auto w-100"
+				style={{ minHeight: 0 }}
+			>
+				<ClientList
+					clients={clients}
+					onSelectClient={onSelectClient}
+					deselect={deselect}
+					deleteClient={deleteClient}
+				/>
+			</div>
+
+			<div className="m-3">
+				<Name name={name} editName={editName} />
+			</div>
 		</div>
 	);
 };

@@ -465,6 +465,39 @@ const App = () => {
 		};
 	}, []);
 
+	// const testClients: Client[] = [
+	// 	{ id: "1", name: "Beautiful Starling", online: true },
+	// 	{ id: "2", name: "Swift Otter", online: false },
+	// 	{ id: "3", name: "Silent Falcon", online: true },
+	// 	{ id: "4", name: "Lucky Turtle", online: false },
+	// 	{ id: "5", name: "Brave Fox", online: true },
+	// 	{ id: "6", name: "Beautiful Starling", online: true },
+	// 	{ id: "7", name: "Swift Otter", online: false },
+	// 	{ id: "8", name: "Silent Falcon", online: true },
+	// 	{ id: "9", name: "Lucky Turtle", online: false },
+	// 	{ id: "10", name: "Brave Fox", online: true },
+	// 	{ id: "11", name: "Beautiful Starling", online: true },
+	// 	{ id: "12", name: "Swift Otter", online: false },
+	// 	{ id: "13", name: "Silent Falcon", online: true },
+	// 	{ id: "14", name: "Lucky Turtle", online: false },
+	// 	{ id: "15", name: "Brave Fox", online: true },
+	// 	{ id: "16", name: "Beautiful Starling", online: true },
+	// 	{ id: "17", name: "Swift Otter", online: false },
+	// 	{ id: "18", name: "Silent Falcon", online: true },
+	// 	{ id: "19", name: "Lucky Turtle", online: false },
+	// 	{ id: "20", name: "Brave Fox", online: true },
+	// 	{ id: "21", name: "Beautiful Starling", online: true },
+	// 	{ id: "22", name: "Swift Otter", online: false },
+	// 	{ id: "23", name: "Silent Falcon", online: true },
+	// 	{ id: "24", name: "Lucky Turtle", online: false },
+	// 	{ id: "25", name: "Brave Fox", online: true },
+	// 	{ id: "26", name: "Beautiful Starling", online: true },
+	// 	{ id: "27", name: "Swift Otter", online: false },
+	// 	{ id: "28", name: "Silent Falcon", online: true },
+	// 	{ id: "29", name: "Lucky Turtle", online: false },
+	// 	{ id: "30", name: "Brave Fox", online: true },
+	// ];
+
 	return (
 		<div className="d-flex flex-column vh-100">
 			<div className="d-flex flex-grow-1">

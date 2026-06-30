@@ -1,0 +1,65 @@
+import React, { useState } from "react";
+import { Client } from "../types/types";
+
+interface Props {
+	client: Client;
+	selected: boolean;
+	onClick: () => void;
+	onDelete: () => void;
+}
+
+const ClientListItem = ({ client, selected, onClick, onDelete }: Props) => {
+	const [isHovered, setIsHovered] = useState(false);
+	const [isDeleteHovered, setIsDeleteHovered] = useState(false);
+
+	return (
+		<li
+			className={`list-group-item d-flex justify-content-between align-items-center border-0 px-3 py-2 rounded-3 `}
+			style={{
+				backgroundColor:
+					selected || isHovered ? "#d6d9db" : "transparent",
+				cursor: "pointer",
+				transition: "background-color 0.15s ease",
+			}}
+			onClick={onClick}
+			onMouseEnter={() => setIsHovered(true)}
+			onMouseLeave={() => setIsHovered(false)}
+			key={client.id}
+		>
+			<div className="d-flex align-items-center">
+				<div
+					className="rounded-circle me-3"
+					style={{
+						width: 18,
+						height: 18,
+						backgroundColor: client.online ? "#22c55e" : "#6c757d",
+					}}
+				/>
+
+				<span>{client.name}</span>
+			</div>
+
+			<button
+				className="btn btn-link p-0 border-0 m-0 bg-transparent"
+				style={{ lineHeight: 0 }}
+				onClick={(e) => {
+					e.stopPropagation();
+					onDelete();
+				}}
+				onMouseEnter={() => setIsDeleteHovered(true)}
+				onMouseLeave={() => setIsDeleteHovered(false)}
+			>
+				<img
+					src={
+						isDeleteHovered
+							? "../src/icons/delete.png"
+							: "../src/icons/delete-gray.png"
+					}
+					style={{ width: 20 }}
+				/>
+			</button>
+		</li>
+	);
+};
+
+export default ClientListItem;
