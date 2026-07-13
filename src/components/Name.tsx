@@ -6,35 +6,28 @@ interface Props {
 }
 
 const Name = ({ name, editName }: Props) => {
-	const [isEditing, setIsEditing] = useState(false);
 	const [text, setText] = useState(name);
+	const [isHovered, setIsHovered] = useState(false);
 
 	useEffect(() => {
 		setText(name);
 	}, [name]);
 
 	return (
-		<input
-			type="text"
-			className={
-				isEditing
-					? "form-control fs-5 mt-auto"
-					: "form-control fs-5 border-0 shadow-none bg-transparent m-1 p-0 mt-auto"
-			}
+		<div
+			className="form-control fs-5 border-0 shadow-none m-0 p-2 mt-auto w-100"
 			style={{
 				fontWeight: "bold",
 				overflow: "hidden",
 				textOverflow: "ellipsis",
 				whiteSpace: "nowrap",
+				backgroundColor: isHovered ? "#d6d9db" : "transparent",
 			}}
-			value={text}
-			onChange={(e) => setText(e.target.value)}
-			onFocus={() => setIsEditing(true)}
-			onBlur={() => {
-				setIsEditing(false);
-				editName(text);
-			}}
-		/>
+			onMouseEnter={() => setIsHovered(true)}
+			onMouseLeave={() => setIsHovered(false)}
+		>
+			{name}
+		</div>
 	);
 };
 

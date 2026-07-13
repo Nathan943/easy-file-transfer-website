@@ -2,9 +2,10 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import PairingMenu from "./PairingMenu";
 import { Message, Conversation } from "../types/types";
 import MessageDisplay from "./MessageDisplay";
+import Settings from "./Settings";
 
 interface Props {
-	showMenu: boolean;
+	activePanel: "none" | "pairing" | "settings";
 	pairingCode: number;
 	generatePairingCode: () => void;
 	connectWithClient: (pairingCode: string) => void;
@@ -14,7 +15,7 @@ interface Props {
 }
 
 const MainContent = ({
-	showMenu,
+	activePanel,
 	pairingCode,
 	generatePairingCode,
 	connectWithClient,
@@ -30,19 +31,21 @@ const MainContent = ({
 		if (containerRef.current) {
 			containerRef.current.scrollTop = containerRef.current.scrollHeight;
 		}
-	}, [messages, showMenu]);
+	}, [messages, activePanel]);
 
 	return (
 		<div
 			className="flex-grow-1 d-flex justify-content-center h-100 pb-4"
 			style={{ maxHeight: "100vh" }}
 		>
-			{showMenu ? (
+			{activePanel == "pairing" ? (
 				<PairingMenu
 					pairingCode={pairingCode}
 					generatePairingCode={generatePairingCode}
 					connectWithClient={connectWithClient}
 				/>
+			) : activePanel == "settings" ? (
+				<Settings />
 			) : (
 				<div
 					className="d-flex flex-column overflow-auto p-5 w-100"

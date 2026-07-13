@@ -34,7 +34,9 @@ const App = () => {
 	});
 
 	//For the MainContent component to decide whether to show the pairing menu or not
-	const [showMenu, setShowMenu] = useState(false);
+	const [activePanel, setActivePanel] = useState<
+		"none" | "pairing" | "settings"
+	>("none");
 
 	//Hold all conversations, storing id and messages
 	const [conversations, setConversations] = useState<Conversation[]>(() => {
@@ -507,15 +509,15 @@ const App = () => {
 					editName={editName}
 					onSelectClient={(client) => {
 						setSelectedClient(client);
-						setShowMenu(false);
+						setActivePanel("none");
 					}}
-					showMenu={showMenu}
-					setShowMenu={setShowMenu}
+					togglePairing={() => setActivePanel("pairing")}
+					toggleSettings={() => setActivePanel("settings")}
 					deleteClient={deleteClient}
 				/>
 
 				<MainContent
-					showMenu={showMenu}
+					activePanel={activePanel}
 					pairingCode={pairingCode}
 					generatePairingCode={socketHandler.getPairingCode}
 					connectWithClient={socketHandler.connectWithClient}

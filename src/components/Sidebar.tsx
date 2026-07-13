@@ -3,14 +3,15 @@ import Name from "./Name";
 import ClientList from "./ClientList";
 import PairingButton from "./PairingButton";
 import { Client } from "../types/types";
+import SettingsPopup from "./SettingsPopup";
 
 interface Props {
 	clients: Client[];
 	name: string;
 	editName: (name: string) => void;
 	onSelectClient: (client: Client) => void;
-	showMenu: boolean;
-	setShowMenu: (showMenu: boolean) => void;
+	togglePairing: () => void;
+	toggleSettings: () => void;
 	deleteClient: (client: Client) => void;
 }
 
@@ -18,10 +19,10 @@ const Sidebar = ({
 	clients,
 	name,
 	onSelectClient,
-	showMenu,
-	setShowMenu,
+	togglePairing,
 	editName,
 	deleteClient,
+	toggleSettings,
 }: Props) => {
 	const [deselect, setDeselect] = useState(0);
 
@@ -32,8 +33,7 @@ const Sidebar = ({
 		>
 			<div className="p-4 pb-0">
 				<PairingButton
-					showMenu={showMenu}
-					setShowMenu={setShowMenu}
+					togglePairing={togglePairing}
 					onAddDevice={() => {
 						setDeselect((prev) => prev + 1);
 					}}
@@ -52,8 +52,12 @@ const Sidebar = ({
 				/>
 			</div>
 
-			<div className="m-3">
-				<Name name={name} editName={editName} />
+			<div className="w-100">
+				<SettingsPopup
+					name={name}
+					editName={editName}
+					toggleSettings={toggleSettings}
+				/>
 			</div>
 		</div>
 	);

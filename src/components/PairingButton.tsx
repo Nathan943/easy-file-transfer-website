@@ -1,19 +1,18 @@
 import React, { useState } from "react";
 
 interface Props {
-	showMenu: boolean;
-	setShowMenu: (showMenu: boolean) => void;
+	togglePairing: () => void;
 	onAddDevice: () => void;
 }
 
-const PairingButton = ({ showMenu, setShowMenu, onAddDevice }: Props) => {
+const PairingButton = ({ togglePairing, onAddDevice }: Props) => {
 	return (
 		<>
 			<button
 				type="button"
 				className="btn btn-outline-primary mb-4"
 				onClick={() => {
-					setShowMenu(true);
+					togglePairing();
 					onAddDevice();
 				}}
 			>

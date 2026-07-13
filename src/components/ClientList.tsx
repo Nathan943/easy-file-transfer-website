@@ -24,7 +24,7 @@ const ClientList = ({
 	}, [deselect]);
 
 	return (
-		<ul className="list-group w-100 gap-1 pe-3 border-0">
+		<ul className="list-group w-100 gap-1 px-2 border-0">
 			{clients.map((client, index) => (
 				<ClientListItem
 					client={client}

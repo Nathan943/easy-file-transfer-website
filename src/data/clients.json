@@ -32,8 +32,7 @@
     "id": "4c269347-4a80-47dd-99c5-7ad073e40a22",
     "name": "Tall Shrewsy",
     "contacts": [
-      "a515af81-c1d3-47db-98c3-261afd48f11c",
-      "1a1f9dbf-c478-4c14-a3c7-45bc4437ca01"
+      "a515af81-c1d3-47db-98c3-261afd48f11c"
     ]
   },
   {
@@ -43,7 +42,7 @@
   },
   {
     "id": "a515af81-c1d3-47db-98c3-261afd48f11c",
-    "name": "Calm Cobraa",
+    "name": "Calm Cobra",
     "contacts": [
       "4c269347-4a80-47dd-99c5-7ad073e40a22"
     ]
@@ -56,8 +55,6 @@
   {
     "id": "1a1f9dbf-c478-4c14-a3c7-45bc4437ca01",
     "name": "Beautiful Starling",
-    "contacts": [
-      "4c269347-4a80-47dd-99c5-7ad073e40a22"
-    ]
+    "contacts": []
   }
 ]
