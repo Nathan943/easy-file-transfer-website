@@ -26,7 +26,7 @@ const PairingMenu = ({
 
 			<button
 				type="button"
-				className="btn btn-outline-primary mb-3"
+				className="btn btn-outline-primary mb-4 p-2"
 				onClick={generatePairingCode}
 			>
 				Generate pairing code
@@ -34,17 +34,17 @@ const PairingMenu = ({
 
 			{pairingCode != 0 && (
 				<>
-					<h2
-						className="text-center"
+					<h1
+						className="text-center mb-3"
 						style={{
 							letterSpacing: "8px",
 							fontWeight: "bold",
 						}}
 					>
 						{pairingCode}
-					</h2>
+					</h1>
 					<p className="text-center text-secondary">
-						Code expires in 60 seconds
+						Expires in 60 seconds
 					</p>
 				</>
 			)}
@@ -56,11 +56,11 @@ const PairingMenu = ({
 				value={inputCode}
 				onChange={handleInputCode}
 				className="form-control mb-2"
-				placeholder="Enter pairing code..."
+				placeholder="Enter code..."
 			/>
 
 			<button
-				className="btn btn-success"
+				className="btn btn-success p-2"
 				onClick={() => {
 					connectWithClient(inputCode);
 				}}

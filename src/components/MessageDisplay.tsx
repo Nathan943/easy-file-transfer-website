@@ -1,4 +1,5 @@
 import React from "react";
+import { ThemeMode, useTheme } from "../context/ThemeContext";
 
 interface Props {
 	isIncoming: boolean;
@@ -17,13 +18,15 @@ const MessageDisplay = ({
 	status,
 	progress,
 }: Props) => {
+	const { theme } = useTheme();
+
 	return (
 		<div className="d-flex w-100 justify-content-center">
 			<div
 				className={`d-flex flex-row justify-content-between align-items-center mb-3 p-3 rounded-3 gap-4 shadow ${!isIncoming && "bg-primary text-white"}`}
 				style={{
 					width: "300px",
-					backgroundColor: isIncoming ? "lightgray" : "",
+					backgroundColor: isIncoming ? theme.messageBackground : "",
 					marginLeft: !isIncoming ? "350px" : "",
 					marginRight: isIncoming ? "350px" : "",
 				}}

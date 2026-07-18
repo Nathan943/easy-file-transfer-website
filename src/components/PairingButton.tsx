@@ -2,23 +2,25 @@ import React, { useState } from "react";
 
 interface Props {
 	togglePairing: () => void;
-	onAddDevice: () => void;
+	onPairingMenu: () => void;
 }
 
-const PairingButton = ({ togglePairing, onAddDevice }: Props) => {
+const PairingButton = ({ togglePairing, onPairingMenu }: Props) => {
 	return (
-		<>
-			<button
-				type="button"
-				className="btn btn-outline-primary mb-4"
-				onClick={() => {
-					togglePairing();
-					onAddDevice();
-				}}
-			>
-				Add device
-			</button>
-		</>
+		<button
+			type="button"
+			className="btn btn-outline-primary w-100 rounded-3"
+			style={{
+				height: "44px",
+				fontWeight: 600,
+			}}
+			onClick={() => {
+				togglePairing();
+				onPairingMenu();
+			}}
+		>
+			Add device
+		</button>
 	);
 };
 

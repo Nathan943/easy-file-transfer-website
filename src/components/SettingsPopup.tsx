@@ -1,23 +1,35 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
+import { ThemeMode, useTheme } from "../context/ThemeContext";
 
 interface Props {
 	name: string;
 	editName: (name: string) => void;
 	toggleSettings: () => void;
+	onSettingsMenu: () => void;
 }
 
-const SettingsPopup = ({ name, editName, toggleSettings }: Props) => {
+const SettingsPopup = ({
+	name,
+	editName,
+	toggleSettings,
+	onSettingsMenu,
+}: Props) => {
 	const [open, setOpen] = useState(false);
 	const [isHovered, setIsHovered] = useState(false);
 
+	const [editIsHovered, setEditIsHovered] = useState(false);
+	const [settingsIsHovered, setSettingsIsHovered] = useState(false);
+
 	const [editing, setEditing] = useState(false);
 	const [newName, setNewName] = useState(name);
+
+	const { theme, themeMode } = useTheme();
 
 	return (
 		<div className="position-relative w-100 border-top mb-2 p-2 pb-0 ">
 			{editing ? (
 				<input
-					className="form-control fs-5 fw-bold p-3"
+					className="form-control fs-5 fw-bold p-3 shadow-none"
 					value={newName}
 					onChange={(e) => setNewName(e.target.value)}
 					autoFocus
@@ -47,7 +59,9 @@ const SettingsPopup = ({ name, editName, toggleSettings }: Props) => {
 						whiteSpace: "nowrap",
 						boxShadow: "none",
 						backgroundColor:
-							open || isHovered ? "#d6d9db" : "white",
+							open || isHovered
+								? theme.selected
+								: theme.background,
 					}}
 					onClick={(e) => {
 						setOpen(!open);
@@ -62,23 +76,37 @@ const SettingsPopup = ({ name, editName, toggleSettings }: Props) => {
 
 			{open && (
 				<div
-					className="position-absolute d-flex flex-column rounded-3"
+					className="position-absolute d-flex flex-column rounded-3 p-2"
 					style={{
 						width: "282px",
-						bottom: "calc(100% + 8px)",
+						bottom: "calc(100% + 10px)",
 						overflow: "hidden",
+						backgroundColor: theme.settingsPopupBackground,
+						boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
 					}}
 				>
 					<button
-						className="btn btn-light w-100 p-2 ps-3 text-start rounded-3 border-0 d-flex flex-row align-items-center"
+						className={`w-100 p-2 ps-3 text-start rounded-3 border-0 d-flex flex-row align-items-center btn ${themeMode == "light" ? "btn-light" : "btn-dark"}`}
+						style={{
+							backgroundColor: editIsHovered
+								? theme.hover
+								: theme.settingsPopupBackground,
+						}}
 						onClick={() => {
 							setOpen(false);
 							setNewName(name);
 							setEditing(true);
+							setEditIsHovered(false);
 						}}
+						onMouseEnter={() => setEditIsHovered(true)}
+						onMouseLeave={() => setEditIsHovered(false)}
 					>
 						<img
-							src="../src/icons/edit.png"
+							src={
+								themeMode == "light"
+									? "../src/icons/edit-light.png"
+									: "../src/icons/edit-dark.png"
+							}
 							style={{
 								width: "18px",
 								height: "18px",
@@ -88,11 +116,27 @@ const SettingsPopup = ({ name, editName, toggleSettings }: Props) => {
 						Change Name
 					</button>
 					<button
-						className="btn btn-light w-100 p-2 ps-3 text-start rounded-3 border-0 d-flex flex-row align-items-center"
-						onClick={() => toggleSettings()}
+						className={`w-100 p-2 ps-3 text-start rounded-3 border-0 d-flex flex-row align-items-center btn`}
+						style={{
+							backgroundColor: settingsIsHovered
+								? theme.hover
+								: theme.settingsPopupBackground,
+						}}
+						onClick={() => {
+							toggleSettings();
+							setOpen(false);
+							setSettingsIsHovered(false);
+							onSettingsMenu();
+						}}
+						onMouseEnter={() => setSettingsIsHovered(true)}
+						onMouseLeave={() => setSettingsIsHovered(false)}
 					>
 						<img
-							src="../src/icons/settings.png"
+							src={
+								themeMode == "light"
+									? "../src/icons/settings-light.png"
+									: "../src/icons/settings-dark.png"
+							}
 							style={{
 								width: "18px",
 								height: "18px",

@@ -1,8 +1,11 @@
 import React from "react";
+import { ThemeMode, useTheme } from "../context/ThemeContext";
 
 interface Props {}
 
 const Settings = ({}: Props) => {
+	const { theme, themeMode, setThemeMode } = useTheme();
+
 	return (
 		<div
 			className="d-flex flex-column justify-content-start p-5 gap-5"
@@ -17,12 +20,19 @@ const Settings = ({}: Props) => {
 					<h6 className="fw-normal mb-0">Theme</h6>
 					<select
 						name="theme"
+						value={themeMode}
+						onChange={(e) =>
+							setThemeMode(e.target.value as ThemeMode)
+						}
 						className="border-0"
-						style={{ outline: 0 }}
+						style={{
+							outline: 0,
+							backgroundColor: theme.background,
+						}}
 					>
-						<option value="">Light</option>
-						<option value="volvo">Dark</option>
-						<option value="saab">System</option>
+						<option value="light">Light</option>
+						<option value="dark">Dark</option>
+						<option value="system">System</option>
 					</select>
 				</div>
 			</div>
@@ -34,7 +44,7 @@ const Settings = ({}: Props) => {
 					<h6 className="fw-normal mb-0">Download automatically</h6>
 					<div className="form-check form-switch">
 						<input
-							className="form-check-input"
+							className="form-check-input shadow-none"
 							style={{
 								border: "1px solid #a1a6ac",
 								transform: "scale(1.2)",
@@ -60,7 +70,7 @@ const Settings = ({}: Props) => {
 					<h6 className="fw-normal mb-0">Show offline devices</h6>
 					<div className="form-check form-switch">
 						<input
-							className="form-check-input"
+							className="form-check-input shadow-none"
 							style={{
 								border: "1px solid #a1a6ac",
 								transform: "scale(1.2)",
@@ -84,7 +94,10 @@ const Settings = ({}: Props) => {
 				<h6 className="fw-normal mb-2">Version 1.0.0</h6>
 				<a
 					href="https://github.com/Nathan943/easy-file-transfer-website"
-					className="text-dark"
+					target="_blank"
+					className={
+						themeMode == "light" ? "text-dark" : "text-light"
+					}
 				>
 					GitHub
 				</a>

@@ -24,7 +24,10 @@ const ClientList = ({
 	}, [deselect]);
 
 	return (
-		<ul className="list-group w-100 gap-1 px-2 border-0">
+		<ul
+			className="list-group w-100 gap-1 px-2 border-0 flex-grow-1 overflow-y-auto hide-scrollbar"
+			style={{ scrollbarWidth: "none" }}
+		>
 			{clients.map((client, index) => (
 				<ClientListItem
 					client={client}
@@ -34,6 +37,7 @@ const ClientList = ({
 						onSelectClient(client);
 					}}
 					onDelete={() => deleteClient(client)}
+					key={client.id}
 				/>
 			))}
 		</ul>

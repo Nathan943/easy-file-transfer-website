@@ -408,6 +408,7 @@ const App = () => {
 
 		socketHandler.onContactsReceived((contacts: Client[]) => {
 			setClients(contacts);
+			// setClients([...contacts, ...testClients]);
 		});
 
 		socketHandler.onClientOnlineStatusChange(

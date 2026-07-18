@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Client } from "../types/types";
+import { ThemeMode, useTheme } from "../context/ThemeContext";
 
 interface Props {
 	client: Client;
@@ -12,12 +13,14 @@ const ClientListItem = ({ client, selected, onClick, onDelete }: Props) => {
 	const [isHovered, setIsHovered] = useState(false);
 	const [isDeleteHovered, setIsDeleteHovered] = useState(false);
 
+	const { theme, themeMode } = useTheme();
+
 	return (
 		<li
 			className={`list-group-item d-flex justify-content-between align-items-center border-0 px-3 py-2 rounded-3 `}
 			style={{
 				backgroundColor:
-					selected || isHovered ? "#d6d9db" : "transparent",
+					selected || isHovered ? theme.selected : "transparent",
 				cursor: "pointer",
 				transition: "background-color 0.15s ease",
 			}}
@@ -32,7 +35,7 @@ const ClientListItem = ({ client, selected, onClick, onDelete }: Props) => {
 					style={{
 						width: 18,
 						height: 18,
-						backgroundColor: client.online ? "#22c55e" : "#6c757d",
+						backgroundColor: client.online ? "#22c55e" : "#979ea5",
 					}}
 				/>
 
@@ -55,7 +58,9 @@ const ClientListItem = ({ client, selected, onClick, onDelete }: Props) => {
 							? "../src/icons/delete.png"
 							: "../src/icons/delete-gray.png"
 					}
-					style={{ width: 20 }}
+					style={{
+						width: 20,
+					}}
 				/>
 			</button>
 		</li>
