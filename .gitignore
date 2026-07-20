@@ -4,4 +4,4 @@ dist
 .vite/
 *.log
 .env
-../src/data/clients.json
+src/data/clients.json
