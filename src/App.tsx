@@ -1,17 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import Header from "./src/components/Header";
-import Name from "./src/components/Name";
-import Sidebar from "./src/components/Sidebar";
-import MainContent from "./src/components/MainContent";
-import {
-	Message,
-	Conversation,
-	Client,
-	TemporaryFile,
-} from "./src/types/types";
-import socketHandler from "./src/handlers/SocketHandler";
-import fileStorageHandler from "./src/handlers/FileStorageHandler";
-import { useSettings } from "./src/context/SettingsContext";
+import Header from "./components/Header";
+import Name from "./components/Name";
+import Sidebar from "./components/Sidebar";
+import MainContent from "./components/MainContent";
+import { Message, Conversation, Client, TemporaryFile } from "./types/types";
+import socketHandler from "./handlers/SocketHandler";
+import fileStorageHandler from "./handlers/FileStorageHandler";
+import { useSettings } from "./context/SettingsContext";
 
 const App = () => {
 	//List of connected clients, stored as name and id
