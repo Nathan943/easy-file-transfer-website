@@ -24,6 +24,8 @@ class SocketHandler {
 	private uploadQueue: QueuedUpload[] = [];
 	private uploading: boolean = false;
 
+	private autoDownload = false;
+
 	/*
 	Callback functions so App can receive data
 	*/
@@ -231,6 +233,22 @@ class SocketHandler {
 						parsedMessage.messageId,
 					);
 
+					//Check if the automatic download settings is enabled, and if so download a copy immediately
+					if (this.autoDownload) {
+						const url = URL.createObjectURL(reconstructedFile);
+
+						const a = document.createElement("a");
+						a.href = url;
+						a.download = reconstructedFile.name;
+						a.style.display = "none";
+
+						document.body.appendChild(a);
+						a.click();
+						document.body.removeChild(a);
+
+						setTimeout(() => URL.revokeObjectURL(url), 1000);
+					}
+
 					this.updateProgressBarCallback?.(
 						parsedMessage.messageId,
 						1,
@@ -401,6 +419,10 @@ class SocketHandler {
 		};
 
 		sendChunk();
+	}
+
+	setAutoDownload(value: boolean) {
+		this.autoDownload = value;
 	}
 
 	/*

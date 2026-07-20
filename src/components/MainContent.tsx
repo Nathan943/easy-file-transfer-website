@@ -13,6 +13,7 @@ interface Props {
 	onFileSelect: (file: File) => void;
 	messages: Message[];
 	isOnline: boolean;
+	clearMessageHistory: (forgetDevices: boolean) => Promise<void>;
 }
 
 const MainContent = ({
@@ -23,6 +24,7 @@ const MainContent = ({
 	onFileSelect,
 	messages,
 	isOnline,
+	clearMessageHistory,
 }: Props) => {
 	const [isHovered, setIsHovered] = useState(false);
 
@@ -48,7 +50,7 @@ const MainContent = ({
 					connectWithClient={connectWithClient}
 				/>
 			) : activePanel == "settings" ? (
-				<Settings />
+				<Settings clearMessageHistory={clearMessageHistory} />
 			) : (
 				<div
 					className="d-flex flex-column overflow-auto p-5 w-100"
@@ -70,13 +72,14 @@ const MainContent = ({
 					</div>
 
 					<label
-						className={`btn d-flex align-items-center justify-content-center p-2 rounded-5 border-2 ${isOnline ? "btn-outline-primary" : "btn-outline-secondary"}`}
+						className={`btn d-flex align-items-center justify-content-center p-2 border-2 ${isOnline ? "btn-outline-primary" : "btn-outline-secondary"}`}
 						style={{
-							width: "50px",
-							height: "50px",
+							width: "74px",
+							height: "74px",
 							position: "absolute",
-							bottom: "60px",
-							right: "60px",
+							bottom: "80px",
+							right: "150px",
+							borderRadius: "40px",
 						}}
 						onMouseEnter={() => setIsHovered(true)}
 						onMouseLeave={() => setIsHovered(false)}

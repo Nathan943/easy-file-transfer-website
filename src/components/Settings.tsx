@@ -1,10 +1,15 @@
 import React from "react";
 import { ThemeMode, useTheme } from "../context/ThemeContext";
+import { useSettings } from "../context/SettingsContext";
 
-interface Props {}
+interface Props {
+	clearMessageHistory: (forgetDevices: boolean) => Promise<void>;
+}
 
-const Settings = ({}: Props) => {
+const Settings = ({ clearMessageHistory }: Props) => {
 	const { theme, themeMode, setThemeMode } = useTheme();
+	const { autoDownload, setAutoDownload, showOffline, setShowOffline } =
+		useSettings();
 
 	return (
 		<div
@@ -51,13 +56,26 @@ const Settings = ({}: Props) => {
 							}}
 							type="checkbox"
 							role="switch"
+							checked={autoDownload}
+							onChange={(e) => setAutoDownload(e.target.checked)}
 						/>
 					</div>
 				</div>
 
 				<div className="d-flex flex-row justify-content-between align-items-center">
 					<h6 className="fw-normal mb-0">Clear all transfer data</h6>
-					<button className="btn btn-outline-danger p-1 px-2">
+					<button
+						className="btn btn-outline-danger p-1 px-2"
+						onClick={async () => {
+							if (
+								confirm(
+									"Delete all transfer history and stored files? This cannot be undone.",
+								)
+							) {
+								await clearMessageHistory(false);
+							}
+						}}
+					>
 						Clear all transfer data
 					</button>
 				</div>
@@ -77,12 +95,25 @@ const Settings = ({}: Props) => {
 							}}
 							type="checkbox"
 							role="switch"
+							checked={showOffline}
+							onChange={(e) => setShowOffline(e.target.checked)}
 						/>
 					</div>
 				</div>
 				<div className="d-flex flex-row justify-content-between align-items-center">
 					<h6 className="fw-normal mb-0">Forget all devices</h6>
-					<button className="btn btn-outline-danger p-1 px-2">
+					<button
+						className="btn btn-outline-danger p-1 px-2"
+						onClick={async () => {
+							if (
+								confirm(
+									"Remove all paired devices, conversation history, and stored files? This cannot be undone.",
+								)
+							) {
+								await clearMessageHistory(true);
+							}
+						}}
+					>
 						Forget all devices
 					</button>
 				</div>

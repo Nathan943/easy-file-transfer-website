@@ -82,7 +82,6 @@ const SettingsPopup = ({
 						bottom: "calc(100% + 10px)",
 						overflow: "hidden",
 						backgroundColor: theme.settingsPopupBackground,
-						boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
 					}}
 				>
 					<button

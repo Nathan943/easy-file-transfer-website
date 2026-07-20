@@ -11,6 +11,7 @@ import {
 } from "./src/types/types";
 import socketHandler from "./src/handlers/SocketHandler";
 import fileStorageHandler from "./src/handlers/FileStorageHandler";
+import { useSettings } from "./src/context/SettingsContext";
 
 const App = () => {
 	//List of connected clients, stored as name and id
@@ -57,13 +58,11 @@ const App = () => {
 	const [pairingCode, setPairingCode] = useState(0);
 	const [name, setName] = useState(localStorage.getItem("displayName") ?? "");
 
+	const { autoDownload } = useSettings();
+
 	//Add a new message to a conversation, creating one if there is not already
 	const addMessage = (client: Client, message: Message) => {
-		console.log("adding message", message.id);
-
 		setConversations((prev) => {
-			console.log("previous conversations", prev);
-
 			//Check if a conversation for the client already exists
 			const conversationExists = prev.some(
 				(conversation) => conversation.client.id == client.id,
@@ -97,6 +96,39 @@ const App = () => {
 		);
 
 		return conversation ? conversation.messages : [];
+	};
+
+	const clearMessageHistory = async (forgetDevices: boolean) => {
+		//Go through every message, removing the associated saved file in the database
+		for (const conversation of conversations) {
+			for (const message of conversation.messages) {
+				await fileStorageHandler.deleteFile(message.id);
+			}
+		}
+
+		//If the forgetDevices flag is checked, remove all conversations and clients
+		if (forgetDevices) {
+			for (const client of clients) {
+				socketHandler.deleteClient(client.id);
+			}
+
+			setSelectedClient({
+				id: "",
+				name: "",
+				online: false,
+			});
+
+			setConversations([]);
+			setClients([]);
+		} else {
+			//Go through every conversation and remove the messages in local storage
+			setConversations((prev) =>
+				prev.map((conversation) => ({
+					...conversation,
+					messages: [],
+				})),
+			);
+		}
 	};
 
 	//Build message contents to be displayed
@@ -468,6 +500,10 @@ const App = () => {
 		};
 	}, []);
 
+	useEffect(() => {
+		socketHandler.setAutoDownload(autoDownload);
+	}, [autoDownload]);
+
 	// const testClients: Client[] = [
 	// 	{ id: "1", name: "Beautiful Starling", online: true },
 	// 	{ id: "2", name: "Swift Otter", online: false },
@@ -542,6 +578,7 @@ const App = () => {
 					}}
 					messages={getMessages()}
 					isOnline={selectedClient.online}
+					clearMessageHistory={clearMessageHistory}
 				/>
 			</div>
 		</div>
