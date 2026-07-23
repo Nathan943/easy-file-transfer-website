@@ -17,7 +17,7 @@ Easy File Transfer is a small web application I have been building to quickly tr
 Clone the repository:
 
 ```bash
-git clone https://github.com/Nathan943/easy-file-transfer.git
+https://github.com/Nathan943/Easy-File-Transfer.git
 cd easy-file-transfer
 ```
 
