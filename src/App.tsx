@@ -6,6 +6,7 @@ import MainContent from "./components/MainContent";
 import { Message, Conversation, Client, TemporaryFile } from "./types/types";
 import socketHandler from "./handlers/SocketHandler";
 import fileStorageHandler from "./handlers/FileStorageHandler";
+import cryptoHandler from "./handlers/CryptoHandler";
 import { useSettings } from "./context/SettingsContext";
 
 const App = () => {
@@ -317,6 +318,7 @@ const App = () => {
 	useEffect(() => {
 		const init = async () => {
 			await fileStorageHandler.connect();
+			await cryptoHandler.initialize();
 
 			const rebuilt = await rebuildConversations(conversations);
 			setConversations(markIncompleteMessagesAsFailed(rebuilt));
@@ -569,6 +571,7 @@ const App = () => {
 						await fileStorageHandler.addFile(message.id, file);
 
 						addMessage(selectedClient, message);
+
 						socketHandler.send(file, selectedClient, message.id);
 					}}
 					messages={getMessages()}

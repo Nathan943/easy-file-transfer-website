@@ -13,7 +13,7 @@ class FileStorageHandler {
 
 		return new Promise((resolve, reject) => {
 			//Open the database with version number
-			this.request = window.indexedDB.open("FileStorage", 4);
+			this.request = window.indexedDB.open("AppStorage", 4);
 
 			this.request.onerror = () => reject(this.request?.error);
 
@@ -24,6 +24,10 @@ class FileStorageHandler {
 				//If the schema to store messages doesn't exist, create it
 				if (!this.db.objectStoreNames.contains("messages")) {
 					const store = this.db.createObjectStore("messages", {
+						keyPath: "id",
+					});
+
+					this.db.createObjectStore("keys", {
 						keyPath: "id",
 					});
 

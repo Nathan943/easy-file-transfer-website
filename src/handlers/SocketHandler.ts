@@ -3,6 +3,7 @@
 */
 
 import { Client, TemporaryFile, QueuedUpload } from "../types/types";
+import cryptoHandler from "./CryptoHandler";
 
 //Files are sent in chunks of CHUNK_SIZE
 const CHUNK_SIZE = 512 * 1024;
@@ -19,6 +20,7 @@ class SocketHandler {
 	private currentClient: Client | null = null;
 	private incomingFile: TemporaryFile | null = null;
 	private currentMessageId: string | undefined;
+	private incomingIv: string | null = null;
 
 	//Files are put into a queue when sending to another client
 	private uploadQueue: QueuedUpload[] = [];
@@ -68,18 +70,19 @@ class SocketHandler {
 		this.clientId = clientId;
 
 		//Connect to the server and tell it that this client is online
-		this.socket.addEventListener("open", () => {
+		this.socket.addEventListener("open", async () => {
 			console.log("CONNECTED");
 			this.socket?.send(
 				JSON.stringify({
 					signal: "ON_CLIENT_CONNECT",
-					clientId: this.clientId,
+					targetClientId: this.clientId,
+					publicKey: await cryptoHandler.exportPublicKey(),
 				}),
 			);
 		});
 
 		//Listen for messages from the server
-		this.socket.addEventListener("message", (msg) => {
+		this.socket.addEventListener("message", async (msg) => {
 			//Check for raw file data first
 			if (typeof msg.data !== "string") {
 				if (!this.incomingFile) return;
@@ -174,6 +177,24 @@ class SocketHandler {
 					this.onClientRemovedCallback?.(parsedMessage.clientId);
 
 					break;
+
+				case "PUBLIC_KEY":
+					const isTrusted = await cryptoHandler.checkKey(
+						parsedMessage.targetClientId,
+						parsedMessage.publicKey,
+					);
+
+					if (!isTrusted) {
+						console.error("Warning: Public key changed");
+						return;
+					}
+
+					await cryptoHandler.importPublicKey(
+						parsedMessage.publicKey,
+						parsedMessage.targetClientId,
+					);
+					break;
+
 				case "FILE_META":
 					console.log("meta received");
 					//Don't log new metadata if a file is still being sent
@@ -189,13 +210,7 @@ class SocketHandler {
 						size: parsedMessage.size,
 						chunks: [],
 					};
-
-					console.log(
-						"incomingFile before meta: ",
-						this.incomingFile,
-					);
-					console.log(parsedMessage.client);
-					console.log(this.currentClient);
+					this.incomingIv = parsedMessage.iv;
 
 					if (!this.currentClient) break;
 					if (!this.incomingFile) break;
@@ -213,6 +228,7 @@ class SocketHandler {
 					//Reconstruct a file now that all information has been sent, and send the file to App
 					if (!this.incomingFile) break;
 					if (!this.currentClient) break;
+					if (!this.incomingIv) break;
 
 					const reconstructedBlob = new Blob(
 						this.incomingFile.chunks,
@@ -227,19 +243,25 @@ class SocketHandler {
 						{ type: this.incomingFile.type },
 					);
 
+					const decryptedFile = await cryptoHandler.decryptFile(
+						reconstructedFile,
+						this.incomingIv,
+						this.currentClient.id,
+					);
+
 					this.onFileReceivedCallback?.(
 						this.currentClient,
-						reconstructedFile,
+						decryptedFile,
 						parsedMessage.messageId,
 					);
 
 					//Check if the automatic download settings is enabled, and if so download a copy immediately
 					if (this.autoDownload) {
-						const url = URL.createObjectURL(reconstructedFile);
+						const url = URL.createObjectURL(decryptedFile);
 
 						const a = document.createElement("a");
 						a.href = url;
-						a.download = reconstructedFile.name;
+						a.download = decryptedFile.name;
 						a.style.display = "none";
 
 						document.body.appendChild(a);
@@ -257,6 +279,7 @@ class SocketHandler {
 					this.incomingFile = null;
 					this.currentClient = null;
 					this.currentMessageId = undefined;
+					this.incomingIv = null;
 
 					break;
 
@@ -328,12 +351,31 @@ class SocketHandler {
 	}
 
 	//Start the process of sending a file to the server
-	send(file: File, targetClient: Client, messageId: string) {
+	async send(file: File, targetClient: Client, messageId: string) {
 		if (!file) return;
 		if (!targetClient) return;
 
+		const encryptedData = await cryptoHandler.encryptFile(
+			file,
+			targetClient.id,
+		);
+
+		// const url = URL.createObjectURL(encryptedData.file);
+
+		// const a = document.createElement("a");
+		// a.href = url;
+		// a.download = "encrypted.bin";
+		// a.click();
+
+		// URL.revokeObjectURL(url);
+
 		//Add file to a queue
-		this.uploadQueue.push({ file, targetClient, messageId });
+		this.uploadQueue.push({
+			file: encryptedData.file,
+			iv: encryptedData.iv,
+			targetClient,
+			messageId,
+		});
 		console.log("upload added to queue");
 
 		//Process queue one file at a time
@@ -367,6 +409,7 @@ class SocketHandler {
 		this.socket?.send(
 			JSON.stringify({
 				signal: "FILE_META",
+				iv: uploadData.iv,
 				name: file.name,
 				type: file.type,
 				size: file.size,

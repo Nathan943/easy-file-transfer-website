@@ -61,7 +61,7 @@ const MessageDisplay = ({
 								rx="10"
 								ry="10"
 								fill="none"
-								stroke={isIncoming ? "black" : "white"}
+								stroke={isIncoming ? theme.text : "white"}
 								strokeWidth="3"
 							/>
 
@@ -70,8 +70,8 @@ const MessageDisplay = ({
 								height="20"
 								rx="10"
 								ry="10"
-								fill={isIncoming ? "black" : "white"}
-								stroke={isIncoming ? "black" : "white"}
+								fill={isIncoming ? theme.text : "white"}
+								stroke={isIncoming ? theme.text : "white"}
 								strokeWidth="3"
 							/>
 						</svg>

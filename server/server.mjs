@@ -11,6 +11,8 @@ const pairingCodes = new Map();
 const sessions = new Map();
 const busyClients = new Set();
 
+const publicKeys = new Map();
+
 const adjectives = (await fs.readFile("../src/names/adjectives.txt", "utf-8"))
 	.split(/\r?\n/)
 	.filter(Boolean);
@@ -97,7 +99,6 @@ wss.on("connection", function connection(ws) {
 	let id = "";
 
 	console.log("Total clients: ", clients.size + 1);
-	console.log(clients);
 
 	/* 
     When client sends a message
@@ -151,11 +152,14 @@ wss.on("connection", function connection(ws) {
 		switch (parsedMessage.signal) {
 			case "ON_CLIENT_CONNECT":
 				console.log(
-					`MESSAGE RECEIVED: ON_CLIENT_CONNECTED\n---------------------------------------\nClient ID: ${parsedMessage.clientId}`,
+					`MESSAGE RECEIVED: ON_CLIENT_CONNECT\n---------------------------------------\nClient ID: ${parsedMessage.targetClientId}`,
 				);
 
 				//Log the session that just connected
-				id = parsedMessage.clientId;
+				id = parsedMessage.targetClientId;
+
+				//Log the client's public key
+				publicKeys.set(id, parsedMessage.publicKey);
 
 				if (!clients.has(id)) {
 					clients.set(id, new Set());
@@ -189,14 +193,42 @@ wss.on("connection", function connection(ws) {
 						online: clients.has(connectedClientId),
 					});
 
-					//If a connected client is online, update it with the new information that this client is now online
 					if (clients.has(connectedClientId)) {
+						// Existing online status update
 						for (const client of clients.get(connectedClientId)) {
 							client.send(
 								JSON.stringify({
 									signal: "CLIENT_STATUS_CHANGE",
 									clientId: id,
 									online: true,
+								}),
+							);
+						}
+
+						// Exchange public keys
+						const myKey = publicKeys.get(id);
+						const theirKey = publicKeys.get(connectedClientId);
+
+						if (myKey) {
+							for (const client of clients.get(
+								connectedClientId,
+							)) {
+								client.send(
+									JSON.stringify({
+										signal: "PUBLIC_KEY",
+										targetClientId: id,
+										publicKey: myKey,
+									}),
+								);
+							}
+						}
+
+						if (theirKey) {
+							ws.send(
+								JSON.stringify({
+									signal: "PUBLIC_KEY",
+									targetClientId: connectedClientId,
+									publicKey: theirKey,
 								}),
 							);
 						}
@@ -211,6 +243,7 @@ wss.on("connection", function connection(ws) {
 				);
 
 				break;
+
 			case "REQUEST_PAIRING_CODE":
 				console.log(
 					`MESSAGE RECEIVED: REQUEST_PAIRING_CODE\n---------------------------------------`,
@@ -313,6 +346,33 @@ wss.on("connection", function connection(ws) {
 							);
 						}
 					}
+
+					//Exchange public keys
+					const myKey = publicKeys.get(id);
+					const targetKey = publicKeys.get(targetId);
+
+					if (myKey && clients.has(targetId)) {
+						for (const client of clients.get(targetId)) {
+							console.log("Sending public key");
+							client.send(
+								JSON.stringify({
+									signal: "PUBLIC_KEY",
+									targetClientId: id,
+									publicKey: myKey,
+								}),
+							);
+						}
+					}
+
+					if (targetKey) {
+						ws.send(
+							JSON.stringify({
+								signal: "PUBLIC_KEY",
+								targetClientId: targetId,
+								publicKey: targetKey,
+							}),
+						);
+					}
 				} else {
 					//Pairing code expired or does not exist
 					console.log("Unsuccessful connection");
@@ -381,6 +441,7 @@ wss.on("connection", function connection(ws) {
 								transferTargets[0].send(
 									JSON.stringify({
 										signal: "FILE_META",
+										iv: parsedMessage.iv,
 										client: {
 											id,
 											name: clientAndNames.get(id),
@@ -482,7 +543,6 @@ wss.on("connection", function connection(ws) {
 						}
 					}
 				}
-
 				clients.delete(id);
 			}
 		}

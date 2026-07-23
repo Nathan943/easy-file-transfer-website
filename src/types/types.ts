@@ -38,6 +38,12 @@ export interface OutgoingFileData {
 
 export interface QueuedUpload {
 	file: File;
+	iv: string;
 	targetClient: Client;
 	messageId: string;
+}
+
+export interface EncryptedFileData {
+	file: File;
+	iv: string;
 }
